@@ -47,6 +47,12 @@ i2c:
   scan: true
   id: bus_a
 
+script:
+  - id: screen_timeout
+    then:
+      - delay: 60s
+      - switch.turn_off: back_light
+
 touchscreen:
   - platform: gt911
     i2c_id: bus_a
@@ -57,6 +63,15 @@ touchscreen:
       number: 1
     interrupt_pin:
       number: 4
+    on_touch:
+      then:
+        - if:
+            condition:
+              switch.is_off: back_light
+            then:
+              - switch.turn_on: back_light
+        - script.stop: screen_timeout
+        - script.execute: screen_timeout
 
 display:
   - platform: rpi_dpi_rgb
