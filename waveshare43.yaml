@@ -36,6 +36,19 @@ ota:
   platform: esphome
   
 time:
+  - platform: sntp
+    id: sntp_time
+    servers:
+     - ntp0.ntp-servers.net
+     - ntp1.ntp-servers.net
+     - ntp2.ntp-servers.net
+    on_time_sync:
+      - script.execute: time_update
+    on_time:
+      - minutes: '*'
+        seconds: 0
+        then:
+          - script.execute: time_update
 
 ch422g:
   - id: io_ex
@@ -46,12 +59,6 @@ i2c:
   frequency: 400kHz
   scan: true
   id: bus_a
-
-script:
-  - id: screen_timeout
-    then:
-      - delay: 60s
-      - switch.turn_off: back_light
 
 touchscreen:
   - platform: gt911
@@ -65,13 +72,7 @@ touchscreen:
       number: 4
     on_touch:
       then:
-        - if:
-            condition:
-              switch.is_off: back_light
-            then:
-              - switch.turn_on: back_light
-        - script.stop: screen_timeout
-        - script.execute: screen_timeout
+        - script.execute: backlight_off
 
 display:
   - platform: rpi_dpi_rgb
@@ -123,22 +124,427 @@ display:
         - 47        #g6
         - 21        #g7
 
-switch:
-  - platform: gpio
-    id: back_light
-    name: Backlight
-    pin:
-      ch422g: io_ex
-      number: 2
-      mode:
-        output: true
-      inverted: false
+output:
+  - platform: ledc
+    pin: GPIO6
+    id: backlight_output
+    zero_means_zero: true
+light:
+  - platform: monochromatic
+    id: backlight
+    name: Back Light
+    entity_category: config
+    output: backlight_output
+    restore_mode: ALWAYS_ON
+
+globals:
+  - id: current_pin
+    type: std::string
+    initial_value: "" 
 
 button:
   - platform: restart
     id: reboot
     name: reboot
 
+switch:
+  - platform: template
+    id: home_page_flag
+    optimistic: true
+    
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: IP Address
+      id: ip_addr
+      entity_category: "diagnostic"
+    ssid:
+      id: connected_ssid
+      name: SSID
+      entity_category: "diagnostic"
+    bssid:
+      id: connected_bssid
+      name: BSSID
+      entity_category: "diagnostic"
+    mac_address:
+      id: device_mac
+   
+  - platform: homeassistant
+    id: met_weather
+    entity_id: weather.home
+    on_value:
+      then:
+        - script.execute: weather_update
+        - lvgl.label.update:
+            id:
+              - display_weather_text
+            text: !lambda return x;
+         
+
+  - platform: template
+    id: pin_test
+
+  - platform: homeassistant
+    name: "Alarm Status"
+    entity_id: alarm_control_panel.alarmo
+    id: alarm_status    
+    on_value:
+      if:
+        condition:
+          - lambda: return id(alarm_status).state == "arming";
+        then:
+          - lvgl.label.update: 
+              id: alarm_status_lvgl
+              text_color: amber
+        else:
+          - if:
+              condition:
+                - lambda: return id(alarm_status).state == "armed_home";
+              then:
+                - lvgl.label.update: 
+                    id: alarm_status_lvgl
+                    text_color: green
+                    text: "\U000F068A"
+              else:
+                - if:
+                    condition:
+                      - lambda: return id(alarm_status).state == "armed_away";
+                    then:
+                      - lvgl.label.update: 
+                          id: alarm_status_lvgl
+                          text_color: green
+                          text: "\U000F099D"
+                    else:
+                      - if:
+                          condition:
+                            - lambda: return id(alarm_status).state == "armed_night";
+                          then:
+                            - lvgl.label.update: 
+                                id: alarm_status_lvgl
+                                text_color: green
+                                text: "\U000F1828"
+                          else:
+                            - if:
+                                condition:
+                                  - lambda: return id(alarm_status).state == "disarmed";
+                                then:
+                                  - lvgl.label.update: 
+                                      id: alarm_status_lvgl
+                                      text_color: red
+                                      text: "\U000F099E"
+
+
+script:
+
+  - id: time_update
+    then:
+      - lvgl.label.update:
+          id: display_time_blank
+          text: !lambda |-
+            static char time_buf[16];
+            auto now = id(sntp_time).now();            
+            snprintf(time_buf, sizeof(time_buf), "%02d:%02d", now.hour, now.minute);
+            return time_buf;
+
+  - id: backlight_off      
+    then:
+      - lambda: id(backlight).turn_on().set_brightness(1.0).set_transition_length(.5).perform();
+      - delay: 90s
+      - lambda: id(backlight).turn_on().set_brightness(.5).set_transition_length(.5).perform();
+      - lvgl.page.show: clock_page
+    mode: restart
+
+  - id: weather_update
+    then:
+      - if:
+          condition:
+            - lambda: return id(met_weather).state == "rainy";
+          then:
+            - lvgl.label.update:
+                id: 
+                  - display_weather
+                  
+                text_font: icon_font_80
+                text: "\U000F0597"
+          else:
+            - if:
+                condition:
+                  - lambda: return id(met_weather).state == "clear-night";
+                then:
+                  - lvgl.label.update:
+                      id: 
+                        - display_weather
+                        
+                      text_font: icon_font_80
+                      text: "\U000F0594"               
+                else:
+                  - if:
+                      condition:
+                        - lambda: return id(met_weather).state == "exceptional";
+                      then:
+                        - lvgl.label.update:
+                            id: 
+                              - display_weather
+                              
+                            text_font: icon_font_80
+                            text: "\U000F0590"
+                      else:
+                        - if:
+                            condition:
+                              - lambda: return id(met_weather).state == "hail";
+                            then:
+                              - lvgl.label.update:
+                                  id: 
+                                    - display_weather
+                                    
+                                  text_font: icon_font_80
+                                  text: "\U000F0592"
+                            else:
+                              - if:
+                                  condition:
+                                    - lambda: return id(met_weather).state == "lightning";
+                                  then:
+                                    - lvgl.label.update:
+                                        id: 
+                                          - display_weather
+                                          
+                                        text_font: icon_font_80
+                                        text: "\U000F0593"
+                                  else:
+                                    - if:
+                                        condition:
+                                          - lambda: return id(met_weather).state == "lightning-rainy";
+                                        then:
+                                          - lvgl.label.update:
+                                              id: 
+                                                - display_weather
+                                                
+                                              text_font: icon_font_80
+                                              text: "\U000F067E"
+                                        else:
+                                          - if:
+                                              condition:
+                                                - lambda: return id(met_weather).state == "partlycloudy";
+                                              then:
+                                                - lvgl.label.update:
+                                                    id: 
+                                                      - display_weather
+                                                      
+                                                    text_font: icon_font_80
+                                                    text: "\U000F0595"
+                                              else:
+                                                - if:
+                                                    condition:
+                                                      - lambda: return id(met_weather).state == "pouring";
+                                                    then:
+                                                      - lvgl.label.update:
+                                                          id: 
+                                                            - display_weather
+                                                            
+                                                          text_font: icon_font_80
+                                                          text: "\U000F0596"           
+                                                    else:
+                                                      - if:
+                                                          condition:
+                                                            - lambda: return id(met_weather).state == "snowy";
+                                                          then:
+                                                            - lvgl.label.update:
+                                                                id: 
+                                                                  - display_weather
+                                                                  
+                                                                text_font: icon_font_80
+                                                                text: "\U000F0598"  
+                                                          else:
+                                                            - if:
+                                                                condition:
+                                                                  - lambda: return id(met_weather).state == "snowy-rainy";
+                                                                then:
+                                                                  - lvgl.label.update:
+                                                                      id: 
+                                                                        - display_weather
+                                                                        
+                                                                      text_font: icon_font_80
+                                                                      text: "\U000F067F"  
+                                                                else:
+                                                                  - if:
+                                                                      condition:
+                                                                        - lambda: return id(met_weather).state == "sunny";
+                                                                      then:
+                                                                        - lvgl.label.update:
+                                                                            id: 
+                                                                              - display_weather
+                                                                              
+                                                                            text_font: icon_font_80
+                                                                            text: "\U000F0599"    
+                                                                      else:
+                                                                        - if:
+                                                                            condition:
+                                                                              - lambda: return id(met_weather).state == "sunny-rainy";
+                                                                            then:
+                                                                              - lvgl.label.update:
+                                                                                  id: 
+                                                                                    - display_weather
+                                                                                    
+                                                                                  text_font: icon_font_80
+                                                                                  text: "\U000F0596"  
+                                                                            else:
+                                                                              - if:
+                                                                                  condition:
+                                                                                    - lambda: return id(met_weather).state == "windy";
+                                                                                  then:
+                                                                                    - lvgl.label.update:
+                                                                                        id: 
+                                                                                          - display_weather
+                                                                                          
+                                                                                        text_font: icon_font_80
+                                                                                        text: "\U000F059D"  
+                                                                                  else:
+                                                                                    - if:
+                                                                                        condition:
+                                                                                          - lambda: return id(met_weather).state == "windy-variant";
+                                                                                        then:
+                                                                                          - lvgl.label.update:
+                                                                                              id: 
+                                                                                                - display_weather
+                                                                                                
+                                                                                              text_font: icon_font_80
+                                                                                              text: "\U000F059E" 
+                                                                                        else:
+                                                                                          - if:
+                                                                                              condition:
+                                                                                                - lambda: return id(met_weather).state == "sunny-off";
+                                                                                              then:
+                                                                                                - lvgl.label.update:
+                                                                                                    id: 
+                                                                                                      - display_weather
+                                                                                                      
+                                                                                                    text_font: icon_font_80
+                                                                                                    text: "\U000F14E4"  
+                                                                                              else:
+                                                                                                - if:
+                                                                                                    condition:
+                                                                                                      - lambda: return id(met_weather).state == "cloudy";
+                                                                                                    then:
+                                                                                                      - lvgl.label.update:
+                                                                                                          id: 
+                                                                                                            - display_weather
+                                                                                                            
+                                                                                                          text_font: icon_font_80
+                                                                                                          text: "\U000F0590"
+
+
+sensor:  
+                   
+  - platform: homeassistant
+    id: out_temp
+    entity_id: sensor.garden_temp_shed
+    internal: true 
+    on_value:
+      - lvgl.label.update:
+          id: 
+            - out_temp_lvgl
+          text:
+            format: "%.0f°C"
+            args: [ 'x' ]
+                            
+binary_sensor:
+  - platform: homeassistant
+    id: outside_light_state
+    entity_id: light.front_outside_light
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: button_1
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: outside_light_lvgl
+                  text_color: yellow
+            else:
+              - lvgl.label.update:
+                  id: outside_light_lvgl
+                  text_color: white
+
+  - platform: homeassistant
+    id: ceiling_light_state
+    entity_id: light.entrance_ceiling
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: button_2
+            state:
+              checked: !lambda return x;  
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: ceiling_light_lvgl
+                  text_color: yellow
+            else:
+              - lvgl.label.update:
+                  id: ceiling_light_lvgl
+                  text_color: white
+
+  - platform: homeassistant
+    id: stairs_light_state
+    entity_id: light.stairs_led
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: button_3
+            state:
+              checked: !lambda return x;  
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: stairs_light_lvgl
+                  text_color: yellow
+            else:
+              - lvgl.label.update:
+                  id: stairs_light_lvgl
+                  text_color: white
+
+
+  - platform: homeassistant
+    id: hallway_state
+    entity_id: light.hallway_ceiling
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: button_4
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: hallway_room_lvgl
+                  text_color: yellow
+            else:
+              - lvgl.label.update:
+                  id: hallway_room_lvgl
+                  text_color: white  
+               
+
+            
+
+     
 font:
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
@@ -179,12 +585,53 @@ font:
     size: 60
     glyphs:
       '${font_glyphs}'
+  - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
+    id: my_font120
+    size: 220
+    bpp: 4
+    glyphs:
+      '${font_glyphs}'
+  # - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
+    # id: my_font180
+    # size: 180
+    # glyphs:
+      # '${font_glyphs}'
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_80
     size: 80
     bpp: 4
     glyphs: &icon_glyphs 
+      - "\U000F0590" # mdi-weather-cloudy
+      - "\U000F0F2F" # mdi-weather-cloudy-alert
+      - "\U000F0E6E" # mdi-weather-cloudy-arrow-right
+      - "\U000F0591" # mdi-weather-fog
+      - "\U000F0592" # mdi-weather-hail
+      - "\U000F0F30" # mdi-weather-hazy
+      - "\U000F0898" # mdi-weather-hurricane
+      - "\U000F0593" # mdi-weather-lightning
+      - "\U000F067E" # mdi-weather-lightning-rainy
+      - "\U000F0594" # mdi-weather-night
+      - "\U000F0F31" # mdi-weather-night-partly-cloudy
+      - "\U000F0595" # mdi-weather-partly-cloudy
+      - "\U000F0F32" # mdi-weather-partly-lightning
+      - "\U000F0F33" # mdi-weather-partly-rainy
+      - "\U000F0F34" # mdi-weather-partly-snowy
+      - "\U000F0F35" # mdi-weather-partly-snowy-rainy
+      - "\U000F0596" # mdi-weather-pouring
+      - "\U000F0597" # mdi-weather-rainy
+      - "\U000F0598" # mdi-weather-snowy
+      - "\U000F0F36" # mdi-weather-snowy-heavy
+      - "\U000F067F" # mdi-weather-snowy-rainy
+      - "\U000F0599" # mdi-weather-sunny
+      - "\U000F0F37" # mdi-weather-sunny-alert
+      - "\U000F14E4" # mdi-weather-sunny-off
+      - "\U000F059A" # mdi-weather-sunset
+      - "\U000F059B" # mdi-weather-sunset-down
+      - "\U000F059C" # mdi-weather-sunset-up
+      - "\U000F0F38" # mdi-weather-tornado
+      - "\U000F059D" # mdi-weather-windy
+      - "\U000F059E" # mdi-weather-windy-variant   F072A
       - "\U000F072A" # washer
       - "\U000F0917" #dryer
       - "\U000F1B20" #desk lamp
@@ -231,7 +678,12 @@ font:
       - "\U000F036D"#microphone off  
       - "\U000F032A"#energy leaf   
       - "\U000F1B94"#sleep
-      
+      - "\U000F04CD"#stairs
+      - "\U000F07D0"#api connected
+      - "\U000F1828"#armed night
+      - "\U000F068A"#alarm home
+      - "\U000F099D"#alarm away
+      - "\U000F099E"#disarmed
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
     size: 120
@@ -244,6 +696,11 @@ font:
     bpp: 4
     glyphs: *icon_glyphs
           
+  # - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
+    # id: icon_font_30
+    # size: 30
+    # # bpp: 4
+    # glyphs: *icon_glyphs
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_40
@@ -291,22 +748,50 @@ color:
   - id: bg_pink
     hex: '61034D'
   - id: bg_charcoal
-    hex: '323232'
+    hex: '141414'
   - id: bg_brown
     hex: '41220D'
   - id: bg_grey
     hex: '4F4F4F'
+
+key_collector:
+  - source_id: lvgl_keypad
+    min_length: 4
+    max_length: 4
+    end_keys: "#"
+    end_key_required: true
+    back_keys: "*"
+    allowed_keys: "0123456789*#"
+    timeout: 5s
+    on_progress:
+      - if:
+          condition:
+            lambda: return (0 != x.compare(std::string{""}));
+          then:
+            - lvgl.label.update:
+                id: lvgl_label
+                text: !lambda 'return x.c_str();'
+                text_color: white
+          else:
+            - lvgl.label.update:
+                id: lvgl_label
+                text: "code"
+                text_color: grey
+    on_result:
+      - lambda: |-
+          id(current_pin) = x.c_str();
+
 lvgl:
   displays:
     - device_display
   touchscreens:
     - device_touchscreen
   theme:
-    label:
-      text_font: my_font28 
-      text_align: CENTER
-      text_color: 0xffffff
-      align: TOP_MID
+    # label:
+      # text_font: my_font28 
+      # text_align: CENTER
+      # text_color: 0xffffff
+      # align: TOP_MID
 
     button:
       bg_color: light_blue
@@ -373,121 +858,100 @@ lvgl:
         
   style_definitions:
     - id: main_content
-      bg_color: light_blue
-      text_color: 0xFFFFFF
+      bg_color: black
+      text_color: amber
+      text_align: CENTER
       width: 100%
       height: 80%    
       align: TOP_MID
       border_width: 0
       radius: 0     
-
-    - id: main_content_full
-      bg_color: light_blue
-      text_color: 0xFFFFFF
-      width: 100%
-      height: 100%    
-      align: TOP_MID
-      border_width: 0
-      radius: 0
-      
-    - id: bottom_content_full
-      bg_color: blue_drk
-      text_color: white
+     
+    - id: bottom_content_bar
+      bg_color: bg_charcoal
+      text_color: amber
       text_align: left
       text_font: my_font40
       align: BOTTOM_LEFT
       width: 100%
       height: 20%    
-      border_side: TOP
-      border_width: 6
-      border_color: purple
-      radius: 0       
+      border_width: 0
+      radius: 0
+ 
                              
-
+########## bottom bar ##########
   top_layer:
       widgets:
         - obj:
             id: bottom_bar
-            styles: bottom_content_full
-            border_width: 0
+            styles: bottom_content_bar
+            text_color: grey
             widgets:            
-              - label:
-                  id: in_temp_lvgl_icon
-                  align: LEFT_MID
-                  text_font: icon_font_40
-                  text: "\U000F050F"
-              - label:
-                  id: in_temp_lvgl
-                  align: LEFT_MID
-                  translate_x: 40
-                  translate_y: 5
-                  text: " "
-              - label:
-                  id: heating_set_temp_lvgl_icon
-                  align: LEFT_MID
-                  translate_x: 150
-                  text_font: icon_font_40
-                  text: "\U000F0238"
-
-              - label:
-                  id: heating_set_temp_lvgl
-                  align: LEFT_MID
-                  translate_x: 190
-                  translate_y: 5
-                  text: " "
-
               - label:
                   id: out_temp_lvgl_icon
                   align: LEFT_MID
-                  translate_x: 300
                   text_font: icon_font_40
-                  text: "\U000F024A"
-
+                  text_color: grey
+                  text: "\U000F050F"
               - label:
                   id: out_temp_lvgl
                   align: LEFT_MID
-                  translate_x: 340
+                  translate_x: 40
                   translate_y: 5
+                  text_color: grey
                   text: " "
 
               - label:
-                  id: energy_lvgl_icon
-                  align: LEFT_MID
-                  translate_x: 450
-                  text_font: icon_font_40
-                  text: "\U000F032A"
+                  id: display_weather
+                  align: CENTER
+                  translate_x: -100
+                  text_font: icon_font_80
+                  text: " " 
 
               - label:
-                  id: energy_lvgl
-                  align: LEFT_MID
-                  translate_x: 500
-                  translate_y: 5
-                  text: " "
+                  id: display_weather_text
+                  align: CENTER
+                  translate_x: 60
+                  text_font: montserrat_40
+                  text: " " 
 
               - label:
                   id: home_lvgl
                   align: BOTTOM_RIGHT
+                  text_color: grey
                   text_font: icon_font_60
                   text: "\U000F02DC"
-
+                  on_click:
+                    - if:
+                        condition:
+                          switch.is_on: home_page_flag
+                        then: 
+                          lvgl.page.show: clock_page
+                        else:
+                          lvgl.page.show: button_page
               - label:
-                  id: sleep_lvgl
+                  id: alarm_status_lvgl
                   align: BOTTOM_RIGHT
                   translate_x: -75
                   text_font: icon_font_60
-                  text: "\U000F1B94"
-
+                  text_color: red
+                  text: "\U000F099E"
+                  on_click:
+                    lvgl.page.show: alarm_page
+         
+######### buttons page ################
   pages:
-    - id: main_page
+    - id: button_page
       widgets:
         - obj: 
             styles: main_content
+            text_font: montserrat_30
             layout: 
               pad_column: 10
-              pad_row: 5
+              pad_row: 2
               type: GRID 
               grid_columns: [FR(1), FR(1), FR(1), FR(1)] 
-              grid_rows: [FR(48), FR(1), FR(48), FR(17)]
+              grid_rows: [FR(70), FR(20), FR(70), FR(20)]
 
             widgets:
               - button:
@@ -501,17 +965,21 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        id: dining_light_lvgl
+                        id: outside_light_lvgl
                         text_font: icon_font_120
-                        text: "\U000F18DD"
+                        text: "\U000F024A"
                         align: CENTER  
-
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.front_outside_light
               - label:
                   grid_cell_column_pos: 0 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
+                  text: "Outside"
                   text_align: CENTER                  
 
               - button:
@@ -525,17 +993,22 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        id: big_light_lvgl
+                        id: ceiling_light_lvgl
                         text_font: icon_font_120
                         text: "\U000F0769"
                         align: CENTER
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.entrance_ceiling
                           
               - label:
                   grid_cell_column_pos: 1 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
+                  text: "Ceiling"
                   text_align: CENTER                  
 
               - button:
@@ -549,17 +1022,21 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        id: back_light_lvgl
+                        id: stairs_light_lvgl
                         text_font: icon_font_120
-                        text: "\U000F0769" 
+                        text: "\U000F04CD" 
                         align: CENTER
-                                
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.stairs_led                                  
               - label:
                   grid_cell_column_pos: 2 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
+                  text: "Stairs"
                   text_align: CENTER                  
 
               - button:
@@ -573,21 +1050,24 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        id: living_room_lvgl
+                        id: hallway_room_lvgl
                         text_font: icon_font_120
-                        text: "\U000F04B9"
+                        text: "\U000F0769"
                         align: CENTER
-
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.hallway_ceiling
               - label:                        
                   grid_cell_column_pos: 3 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
+                  text: "Hallway"
                   text_align: CENTER                                   
                  
 ## second row ##
-
               - button:
                   checkable: false
                   id: button_5
@@ -601,8 +1081,14 @@ lvgl:
                     - label:
                         id: fan_lvgl
                         text_font: icon_font_120
-                        text: "\U000F0210"  
+                        text: "\U000F07D0"  
                         align: CENTER
+                  on_press:
+                    then: 
+                      - homeassistant.service:
+                          service: switch.toggle
+                          data:
+                            entity_id: switch.fan_fan
                   
               - label:
                   grid_cell_column_pos: 0 # place the widget in
@@ -625,8 +1111,14 @@ lvgl:
                     - label:
                         id: tall_lamp_lvgl
                         text_font: icon_font_120
-                        text: "\U000F1747"  
+                        text: "\U000F07D0"
                         align: CENTER
+                  on_press:
+                    then: 
+                      - homeassistant.service:
+                          service: switch.toggle
+                          data:
+                            entity_id: switch.sitting_room_s1
                    
               - label:
                   grid_cell_column_pos: 1 # place the widget in
@@ -649,12 +1141,18 @@ lvgl:
                     - label:
                         id: wall_lamp_lvgl
                         text_font: icon_font_120
-                        text: "\U000F091C"  
+                        text: "\U000F07D0"  
                         align: CENTER
+                  on_press:
+                    then: 
+                      - homeassistant.service:
+                          service: switch.toggle
+                          data:
+                            entity_id: switch.wall_light_esp
                          
               - label:
-                  grid_cell_column_pos: 2 # place the widget in
-                  grid_cell_row_pos: 3 # the corresponding cell
+                  grid_cell_column_pos: 2
+                  grid_cell_row_pos: 3 
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   text: " "
@@ -673,6 +1171,245 @@ lvgl:
                     - label:
                         id: heat_boost_lvgl
                         text_font: icon_font_120
-                        text: "\U000F0238"
+                        text: "\U000F07D0"
                         align: CENTER
+              - label:
+                  grid_cell_column_pos: 3
+                  grid_cell_row_pos: 3 
+                  grid_cell_x_align: STRETCH
+                  grid_cell_y_align: STRETCH
+                  text: " "
+                  text_align: CENTER             
+      on_load: 
+        - script.execute: backlight_off     
+        - switch.turn_on: home_page_flag       
+      on_unload:
+        - switch.turn_off: home_page_flag
  
+
+############ clock page ##############
+    - id: clock_page
+      widgets:
+        - obj: 
+            styles: main_content
+            border_width: 0
+            text_color: red
+            widgets:    
+              - label:
+                  id: display_time_blank
+                  align: CENTER
+                  width: 100%
+                  text_align: CENTER
+                  text_color: red
+                  text_font: my_font120
+                  text: "connecting..." 
+
+              # - label: 
+                  # id: washer_lvgl
+                  # text_font: icon_font_60
+                  # text_color: white
+                  # align: TOP_LEFT
+                  # text: "\U000F072A"
+                  # on_click:
+                    # - lvgl.label.update:
+                        # id: washer_lvgl
+                        # text_color: white              
+
+              # - label: 
+                  # id: dryer_lvgl
+                  # translate_x: 60
+                  # text_font: icon_font_60
+                  # text_color: white
+                  # align: TOP_LEFT
+                  # text: "\U000F0917"                 
+                  # on_click:
+                    # - lvgl.label.update:
+                        # id: dryer_lvgl
+                        # text_color: white
+
+              # - label: 
+                  # id: desk_lamp_lvgl
+                  # # translate_x: 60
+                  # text_font: icon_font_60
+                  # text_color: white
+                  # align: TOP_RIGHT
+                  # text: "\U000F1B20"
+                  # on_click:                 
+                    # - homeassistant.action:
+                        # action: light.toggle
+                        # data:
+                          # entity_id: light.desk_lamp
+
+              # - label: 
+                  # id: sonos_mute_lvgl
+                  # translate_x: -60
+                  # text_font: icon_font_60
+                  # text_color: white
+                  # align: TOP_RIGHT
+                  # text: "\U000F057E"
+                  # on_click:                 
+                    # - switch.toggle: sonos_mute
+
+              # - label: 
+                  # id: music_lvgl
+                  # translate_x: -120
+                  # text_font: icon_font_60
+                  # text_color: white
+                  # align: TOP_RIGHT
+                  # text: "\U000F075A"
+                  # on_click:        
+                    # lvgl.page.show: music_page  
+
+########## alarm page #################
+    - id: alarm_page
+      styles: main_content
+      widgets:
+        - obj:
+            width: 315
+            height: 55
+            align: TOP_RIGHT
+            translate_x: -50
+            translate_y: 30
+            scrollbar_mode: "OFF"
+            bg_color: black
+            widgets:
+              - label:
+                  id: lvgl_label
+                  align: CENTER
+                  text_font: montserrat_40
+                  text: "code"
+                  text_align: CENTER
+            
+        - obj:
+            width: 315
+            height: 75
+            align: TOP_RIGHT
+            translate_x: -50
+            translate_y: 100
+            scrollbar_mode: "OFF"            
+            bg_color: red
+            widgets:
+              - label:
+                  id: alarm_arm_home_lvgl
+                  align: CENTER
+                  text_font: montserrat_40
+                  text: "Arm Home"
+                  text_color: white
+            on_press:
+              - homeassistant.service:
+                  service: alarm_control_panel.alarm_arm_home
+                  data:
+                    entity_id: alarm_control_panel.alarmo
+                    code: !lambda return id(current_pin).c_str();
+              - lambda: |-
+                  id(current_pin) = "xxxx"; 
+
+        - obj:
+            width: 315
+            height: 75
+            align: TOP_RIGHT
+            translate_x: -50
+            translate_y: 186
+            scrollbar_mode: "OFF"            
+            bg_color: red
+            widgets:
+              - label:
+                  id: alarm_arm_night_lvgl
+                  align: CENTER
+                  text_font: montserrat_40
+                  text: "Arm Night"
+                  text_color: white
+            on_press:
+              - homeassistant.service:
+                  service: alarm_control_panel.alarm_arm_night
+                  data:
+                    entity_id: alarm_control_panel.alarmo
+                    code: !lambda return id(current_pin).c_str();
+              - lambda: |-
+                  id(current_pin) = ""; 
+
+
+
+        - obj:
+            width: 315
+            height: 75
+            align: TOP_RIGHT
+            translate_x: -50
+            translate_y: 270
+            scrollbar_mode: "OFF"            
+            bg_color: red
+            widgets:
+              - label:
+                  id: alarm_arm_away_lvgl
+                  align: CENTER
+                  text_font: montserrat_40
+                  text: "Arm Away"
+                  text_color: white
+            on_press:
+              - homeassistant.service:
+                  service: alarm_control_panel.alarm_arm_away
+                  data:
+                    entity_id: alarm_control_panel.alarmo
+                    code: !lambda return id(current_pin).c_str();
+              - lambda: |-
+                  id(current_pin) = ""; 
+
+        - buttonmatrix:
+            id: lvgl_keypad
+            x: 10
+            y: 10
+            width: 400
+            height: 360
+            text_font: montserrat_40
+            bg_color: bg_charcoal
+            border_width: 0
+            items:
+              pressed:
+                bg_color: grey
+            rows:
+              - buttons:
+                  - text: 1
+                    control:
+                      no_repeat: true
+                  - text: 2
+                    control:
+                      no_repeat: true
+                  - text: 3
+                    control:
+                      no_repeat: true
+              - buttons:
+                  - text: 4
+                    control:
+                      no_repeat: true
+                  - text: 5
+                    control:
+                      no_repeat: true
+                  - text: 6
+                    control:
+                      no_repeat: true
+              - buttons:
+                  - text: 7
+                    control:
+                      no_repeat: true
+                  - text: 8
+                    control:
+                      no_repeat: true
+                  - text: 9
+                    control:
+                      no_repeat: true
+              - buttons:
+                    
+                  - text: "\uF55A"
+                    key_code: "*"
+                    control:
+                      no_repeat: true
+                  - text: 0
+                    control:
+                      no_repeat: true
+                  - text: "#75D15F \uF00C#"
+                    key_code: "#"
+                    control:
+                      no_repeat: true
+                      recolor: true
+
+                      
