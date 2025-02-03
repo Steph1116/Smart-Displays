@@ -741,7 +741,7 @@ binary_sensor:
                   text_color: red
             else:
               - lvgl.label.update:
-                  id: hallway_room_lvgl
+                  id: lights_status_lvgl
                   text_color: green    
 
   - platform: homeassistant
@@ -767,6 +767,7 @@ binary_sensor:
               - lvgl.label.update:
                   id: window_status_lvgl
                   text_color: green
+                  text: "\U000F05AE"
                   
   - platform: homeassistant
     id: all_doors_state
@@ -791,6 +792,7 @@ binary_sensor:
               - lvgl.label.update:
                   id: door_status_lvgl
                   text_color: green 
+                  text: "\U000F081B"
                   
 font:
 
@@ -1289,6 +1291,7 @@ lvgl:
                         action: light.toggle
                         data:
                           entity_id: light.hallway_ceiling
+
               - label:                        
                   grid_cell_column_pos: 3 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
