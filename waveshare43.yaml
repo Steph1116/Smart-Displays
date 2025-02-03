@@ -721,7 +721,77 @@ binary_sensor:
               - lvgl.label.update:
                   id: dining_room_lights_lvgl
                   text_color: white
-    
+  - platform: homeassistant
+    id: all_lights_state
+    entity_id: light.all_lights
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: lights_status_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: lights_status_lvgl
+                  text_color: red
+            else:
+              - lvgl.label.update:
+                  id: hallway_room_lvgl
+                  text_color: green    
+
+  - platform: homeassistant
+    id: all_windows_state
+    entity_id: binary_sensor.windows
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: lights_status_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: window_status_lvgl
+                  text_color: red
+                  text:  "\U000F05B1"
+            else:
+              - lvgl.label.update:
+                  id: window_status_lvgl
+                  text_color: green
+                  
+  - platform: homeassistant
+    id: all_doors_state
+    entity_id: binary_sensor.windows
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: door_status_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: door_status_lvgl
+                  text_color: red
+                  text:  "\U000F081C"
+            else:
+              - lvgl.label.update:
+                  id: door_status_lvgl
+                  text_color: green 
+                  
 font:
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
@@ -1365,7 +1435,7 @@ lvgl:
                   id: display_day
                   align: CENTER
                   text: " "
-                  translate_y: 130
+                  translate_y: 120
                   translate_x: -170
                   text_font: montserrat_48
                   
