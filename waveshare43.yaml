@@ -6,7 +6,7 @@ esphome:
   # platformio_options:
     # board_build.flash_mode: dio
   on_boot:
-    - switch.turn_on: back_light
+    - script.execute: backlight_off  
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -34,6 +34,7 @@ logger:
 wifi: 
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # use_address: 192.168.1.127
   manual_ip:
     static_ip: 192.168.2.147
     gateway: 192.168.2.1
@@ -42,12 +43,8 @@ ota:
   platform: esphome
   
 time:
-  - platform: sntp
+  - platform: homeassistant
     id: sntp_time
-    servers:
-     - ntp0.ntp-servers.net
-     - ntp1.ntp-servers.net
-     - ntp2.ntp-servers.net
     on_time_sync:
       - script.execute: time_update
     on_time:
@@ -76,7 +73,8 @@ touchscreen:
       number: 1
     interrupt_pin:
       number: 4
-
+    on_touch:
+      - script.execute: backlight_off
 display:
   - platform: rpi_dpi_rgb
     id: device_display
@@ -196,6 +194,9 @@ text_sensor:
           - lvgl.label.update: 
               id: alarm_status_lvgl
               text_color: amber
+          - lvgl.label.update: 
+              id: disarm_lvgl
+              text_color: amber
         else:
           - if:
               condition:
@@ -203,8 +204,16 @@ text_sensor:
               then:
                 - lvgl.label.update: 
                     id: alarm_status_lvgl
-                    text_color: green
+                    text_color: red
                     text: "\U000F068A"
+                - lvgl.label.update: 
+                    id: disarm_lvgl
+                    text_color: red
+                    text: "\U000F068A"
+                - lvgl.label.update:
+                    id: alarm_arm_home_lvgl
+                    bg_color: red
+                    text: "Armed Home"
               else:
                 - if:
                     condition:
@@ -212,8 +221,16 @@ text_sensor:
                     then:
                       - lvgl.label.update: 
                           id: alarm_status_lvgl
-                          text_color: green
+                          text_color: red
                           text: "\U000F099D"
+                      - lvgl.label.update: 
+                          id: disarm_lvgl
+                          text_color: red
+                          text: "\U000F099D"
+                      - lvgl.label.update:
+                          id: alarm_arm_away_lvgl
+                          bg_color: red
+                          text: "Armed Away"
                     else:
                       - if:
                           condition:
@@ -221,8 +238,16 @@ text_sensor:
                           then:
                             - lvgl.label.update: 
                                 id: alarm_status_lvgl
-                                text_color: green
+                                text_color: red
                                 text: "\U000F1828"
+                            - lvgl.label.update: 
+                                id: disarm_lvgl
+                                text_color: red
+                                text: "\U000F1828"
+                            - lvgl.label.update:
+                                id: alarm_arm_night_lvgl
+                                bg_color: red
+                                text: "Armed Night"
                           else:
                             - if:
                                 condition:
@@ -230,8 +255,24 @@ text_sensor:
                                 then:
                                   - lvgl.label.update: 
                                       id: alarm_status_lvgl
-                                      text_color: red
+                                      text_color: green
                                       text: "\U000F099E"
+                                  - lvgl.label.update: 
+                                      id: disarm_lvgl
+                                      text_color: green
+                                      text: "\U000F099E"
+                                  - lvgl.label.update: 
+                                      id: alarm_arm_away_lvgl
+                                      bg_color: green
+                                      text: "Arm Away"
+                                  - lvgl.label.update: 
+                                      id: alarm_arm_night_lvgl
+                                      bg_color: green
+                                      text: "Arm Night"
+                                  - lvgl.label.update: 
+                                      id: alarm_arm_home_lvgl
+                                      bg_color: green
+                                      text: "Arm Home"
 
 
 script:
@@ -246,13 +287,39 @@ script:
             snprintf(time_buf, sizeof(time_buf), "%02d:%02d", now.hour, now.minute);
             return time_buf;
 
-  # - id: backlight_off      
-    # then:
-      # - switch.turn_on: backlight
-      # - delay: 90s
-      # - lambda: id(backlight).turn_on().set_brightness(.5).set_transition_length(.5).perform();
-      # - lvgl.page.show: clock_page
-    # mode: restart
+      - lvgl.label.update:
+          id: display_day
+          text: !lambda |-
+            static const char * const days_en[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+            static char date_buf[32];
+            auto now = id(sntp_time).now();
+            const char * const * day_names;
+
+            day_names = days_en;
+           
+            snprintf(date_buf, sizeof(date_buf), "%s", day_names[now.day_of_week - 1]);
+            return date_buf;
+
+      - lvgl.label.update:
+          id: display_date
+          text: !lambda |-
+            static const char * const mon_en[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+            static char month_buf[32];
+            auto now = id(sntp_time).now();
+            const char * const * mon_names;
+
+            mon_names = mon_en;
+
+            snprintf(month_buf, sizeof(month_buf), "%02d %s", now.day_of_month, mon_names[now.month - 1]);
+            return month_buf;
+  - id: backlight_off      
+    then:
+      - switch.turn_on: back_light
+      - delay: 60s
+      - lvgl.page.show: clock_page
+      - delay: 180s
+      - switch.turn_off: back_light
+    mode: restart
 
   - id: weather_update
     then:
@@ -437,7 +504,7 @@ sensor:
                    
   - platform: homeassistant
     id: out_temp
-    entity_id: sensor.garden_temp_shed
+    entity_id: sensor.outside_temperature
     internal: true 
     on_value:
       - lvgl.label.update:
@@ -541,9 +608,32 @@ binary_sensor:
                   id: hallway_room_lvgl
                   text_color: white  
                
+  - platform: homeassistant
+    id: hall_motion
+    entity_id: binary_sensor.hallway_motion
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        script.execute: backlight_off
 
-            
+  - platform: homeassistant
+    id: stairs_motion
+    entity_id: binary_sensor.top_stairs_motio
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        script.execute: backlight_off
 
+  - platform: homeassistant
+    id: front_door
+    entity_id: binary_sensor.frontdoor_door
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        script.execute: backlight_off
      
 font:
 
@@ -557,14 +647,8 @@ font:
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font120
     size: 220
-    # bpp: 4
     glyphs:
       '${font_glyphs}'
-  # - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
-    # id: my_font180
-    # size: 180
-    # glyphs:
-      # '${font_glyphs}'
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_80
@@ -628,7 +712,6 @@ font:
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
     size: 120
-    # bpp: 4
     glyphs: *icon_glyphs
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
@@ -637,11 +720,10 @@ font:
     bpp: 4
     glyphs: *icon_glyphs
           
-  # - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
-    # id: icon_font_30
-    # size: 30
-    # # bpp: 4
-    # glyphs: *icon_glyphs
+  - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
+    id: icon_font_180
+    size: 180
+    glyphs: *icon_glyphs
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_40
@@ -716,11 +798,16 @@ key_collector:
           else:
             - lvgl.label.update:
                 id: lvgl_label
-                text: "code"
+                text: "Enter Code"
                 text_color: grey
     on_result:
       - lambda: |-
           id(current_pin) = x.c_str();
+      - homeassistant.service:
+          service: alarm_control_panel.alarm_disarm
+          data:
+            entity_id: alarm_control_panel.alarmo
+            code: !lambda return id(current_pin).c_str();
 
 lvgl:
   displays:
@@ -728,12 +815,6 @@ lvgl:
   touchscreens:
     - device_touchscreen
   theme:
-    # label:
-      # text_font: my_font28 
-      # text_align: CENTER
-      # text_color: 0xffffff
-      # align: TOP_MID
-
     button:
       bg_color: light_blue
       bg_opa: COVER
@@ -878,8 +959,13 @@ lvgl:
                   text_color: red
                   text: "\U000F099E"
                   on_click:
-                    lvgl.page.show: alarm_page
-         
+                    if:
+                      condition:
+                        - lambda: return (id(alarm_status).state == "arming" || id(alarm_status).state == "armed_away" || id(alarm_status).state == "armed_home" || id(alarm_status).state == "armed_night");
+                      then:
+                        lvgl.page.show: disarm_page
+                      else:
+                        lvgl.page.show: alarm_page
 ######### buttons page ################
   pages:
     - id: button_page
@@ -1142,99 +1228,47 @@ lvgl:
                   text_align: CENTER
                   text_color: red
                   text_font: my_font120
-                  text: "connecting..." 
-
-              # - label: 
-                  # id: washer_lvgl
-                  # text_font: icon_font_60
-                  # text_color: white
-                  # align: TOP_LEFT
-                  # text: "\U000F072A"
-                  # on_click:
-                    # - lvgl.label.update:
-                        # id: washer_lvgl
-                        # text_color: white              
-
-              # - label: 
-                  # id: dryer_lvgl
-                  # translate_x: 60
-                  # text_font: icon_font_60
-                  # text_color: white
-                  # align: TOP_LEFT
-                  # text: "\U000F0917"                 
-                  # on_click:
-                    # - lvgl.label.update:
-                        # id: dryer_lvgl
-                        # text_color: white
-
-              # - label: 
-                  # id: desk_lamp_lvgl
-                  # # translate_x: 60
-                  # text_font: icon_font_60
-                  # text_color: white
-                  # align: TOP_RIGHT
-                  # text: "\U000F1B20"
-                  # on_click:                 
-                    # - homeassistant.action:
-                        # action: light.toggle
-                        # data:
-                          # entity_id: light.desk_lamp
-
-              # - label: 
-                  # id: sonos_mute_lvgl
-                  # translate_x: -60
-                  # text_font: icon_font_60
-                  # text_color: white
-                  # align: TOP_RIGHT
-                  # text: "\U000F057E"
-                  # on_click:                 
-                    # - switch.toggle: sonos_mute
-
-              # - label: 
-                  # id: music_lvgl
-                  # translate_x: -120
-                  # text_font: icon_font_60
-                  # text_color: white
-                  # align: TOP_RIGHT
-                  # text: "\U000F075A"
-                  # on_click:        
-                    # lvgl.page.show: music_page  
-
+                  text: " " 
+              - label:
+                  id: display_day
+                  align: CENTER
+                  text: " "
+                  translate_y: 120
+                  translate_x: -170
+                  text_font: montserrat_48
+                  
+              - label:
+                  id: display_date
+                  align: CENTER
+                  text: " "
+                  translate_y: 120
+                  translate_x: 100
+                  text_font: montserrat_48
+      
 ########## alarm page #################
     - id: alarm_page
       styles: main_content
-      widgets:
+      widgets:    
         - obj:
-            width: 315
-            height: 55
-            align: TOP_RIGHT
-            translate_x: -50
-            translate_y: 30
-            scrollbar_mode: "OFF"
-            bg_color: black
-            widgets:
-              - label:
-                  id: lvgl_label
-                  align: CENTER
-                  text_font: montserrat_40
-                  text: "code"
-                  text_align: CENTER
-            
-        - obj:
-            width: 315
-            height: 75
-            align: TOP_RIGHT
-            translate_x: -50
-            translate_y: 100
-            scrollbar_mode: "OFF"            
-            bg_color: red
+            width: 500
+            height: 85
+            align: TOP_MID
+            scrollbar_mode: "OFF"         
+            bg_opa: TRANSP   
+            pad_all: 0
             widgets:
               - label:
                   id: alarm_arm_home_lvgl
                   align: CENTER
+                  text_align: CENTER
                   text_font: montserrat_40
                   text: "Arm Home"
                   text_color: white
+                  width: 100%
+                  height: 100%
+                  bg_opa: COVER
+                  bg_color: green
+
             on_press:
               - homeassistant.service:
                   service: alarm_control_panel.alarm_arm_home
@@ -1242,23 +1276,29 @@ lvgl:
                     entity_id: alarm_control_panel.alarmo
                     code: !lambda return id(current_pin).c_str();
               - lambda: |-
-                  id(current_pin) = "xxxx"; 
+                  id(current_pin) = ""; 
 
         - obj:
-            width: 315
-            height: 75
-            align: TOP_RIGHT
-            translate_x: -50
-            translate_y: 186
+            width: 500
+            height: 85
+            align: CENTER
+            translate_y: -65
             scrollbar_mode: "OFF"            
-            bg_color: red
+            bg_opa: TRANSP   
+            pad_all: 0
             widgets:
               - label:
                   id: alarm_arm_night_lvgl
                   align: CENTER
                   text_font: montserrat_40
+                  text_align: CENTER
                   text: "Arm Night"
                   text_color: white
+                  width: 100%
+                  height: 100%
+                  bg_opa: COVER
+                  bg_color: green
+
             on_press:
               - homeassistant.service:
                   service: alarm_control_panel.alarm_arm_night
@@ -1267,24 +1307,27 @@ lvgl:
                     code: !lambda return id(current_pin).c_str();
               - lambda: |-
                   id(current_pin) = ""; 
-
-
-
         - obj:
-            width: 315
-            height: 75
-            align: TOP_RIGHT
-            translate_x: -50
-            translate_y: 270
+            width: 500
+            height: 85
+            align: BOTTOM_MID
+            translate_y: -130
             scrollbar_mode: "OFF"            
-            bg_color: red
+            bg_opa: TRANSP   
+            pad_all: 0
             widgets:
               - label:
                   id: alarm_arm_away_lvgl
                   align: CENTER
                   text_font: montserrat_40
+                  text_align: CENTER
                   text: "Arm Away"
                   text_color: white
+                  width: 100%
+                  height: 100%
+                  bg_opa: COVER
+                  bg_color: green
+
             on_press:
               - homeassistant.service:
                   service: alarm_control_panel.alarm_arm_away
@@ -1293,30 +1336,41 @@ lvgl:
                     code: !lambda return id(current_pin).c_str();
               - lambda: |-
                   id(current_pin) = ""; 
+ 
 
-        # - obj:
-            # width: 315
-            # height: 225
-            # align: TOP_RIGHT
-            # translate_x: -50
-            # translate_y: 270
-            # scrollbar_mode: "OFF"            
-            # bg_color: green
-            # widgets:
-              # - label:
-                  # id: alarm_disarm_lvgl
-                  # align: CENTER
-                  # text_font: montserrat_48
-                  # text: "Armed"
-                  # text_color: white
-            # on_press:
-              # - homeassistant.service:
-                  # service: alarm_control_panel.alarm_disarm
-                  # data:
-                    # entity_id: alarm_control_panel.alarmo
-                    # code: !lambda return id(current_pin).c_str();
-              # - lambda: |-
-                  # id(current_pin) = ""; 
+    - id: disarm_page
+      styles: main_content
+      widgets:
+        - obj: 
+            styles: main_content
+            border_width: 0
+            widgets:
+              - label:
+                  id: lvgl_label
+                  align: TOP_RIGHT
+                  text_font: montserrat_40
+                  text: "Enter Code"
+                  text_align: CENTER
+                  text_color: grey
+                  translate_x: -145
+                  translate_y: 15
+        - obj:
+            width: 315
+            height: 200
+            align: TOP_RIGHT
+            translate_x: -60
+            translate_y: 110
+            border_width: 0
+            bg_color: black
+            scrollbar_mode: "OFF"            
+            widgets:
+              - label:
+                  bg_color: black
+                  id: disarm_lvgl
+                  align: CENTER
+                  text_font: icon_font_180
+                  text: " "
+      
         - buttonmatrix:
             id: lvgl_keypad
             x: 10
@@ -1374,36 +1428,3 @@ lvgl:
                     control:
                       no_repeat: true
                       recolor: true
-
-      # on_load:
-        # if:
-          # condition:
-            # - lambda: return (id(alarm_status).state == "arming" || id(alarm_status).state == "armed_away" || id(alarm_status).state == "armed_home" || id(alarm_status).state == "armed_night");
-          # then:
-            # - lvgl.widget.hide:
-                # - alarm_arm_away_lvgl
-                # - alarm_arm_home_lvgl
-                # - alarm_arm_night_lvgl
-            # - lvgl.widget.show:
-                # - alarm_disarm_lvgl
-          # else:
-            # - lvgl.widget.show:
-                # - alarm_arm_away_lvgl
-                # - alarm_arm_home_lvgl
-                # - alarm_arm_night_lvgl
-            # - lvgl.widget.hide:
-                # - alarm_disarm_lvgl
-    # - id: disarm_page
-      # styles: main_content
-      # widgets:
-        # - obj: 
-            # styles: main_content
-            # border_width: 0
-            # widgets:    
-              # - label:
-                  # id: disarm_lvgl
-                  # align: CENTER
-                  # width: 100%
-                  # text_align: CENTER
-                  # text_font: icon_font_120
-                  # text: "connecting..."            
