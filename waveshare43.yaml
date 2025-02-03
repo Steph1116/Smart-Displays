@@ -281,7 +281,8 @@ text_sensor:
                                       - lambda: return id(alarm_status).state == "triggered";
                                     then:
                                       lvgl.page.show: triggered_page
-                                  
+ 
+   
 script:
 
   - id: time_update
@@ -519,6 +520,22 @@ script:
 
 
 sensor:  
+
+  - platform: wifi_signal
+    name: "WiFi db"
+    id: wifi_signal_db
+    update_interval: 30s
+    
+  - platform: copy 
+    source_id: wifi_signal_db
+    name: "WiFi Signal"
+    id: wifi_percent
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+    device_class: ""   
+    
                    
   - platform: homeassistant
     id: out_temp
