@@ -26,25 +26,27 @@ psram:
   speed: 80MHz
   
 api:
-
-
 logger:
   hardware_uart: USB_SERIAL_JTAG
   # level: error
 wifi: 
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  # use_address: 192.168.1.127
-  manual_ip:
-    static_ip: 192.168.2.147
-    gateway: 192.168.2.1
-    subnet: 255.255.255.0
+  use_address: 192.168.1.127
+  # manual_ip:
+    # static_ip: 192.168.2.147
+    # gateway: 192.168.2.1
+    # subnet: 255.255.255.0
 ota:
   platform: esphome
   
 time:
-  - platform: homeassistant
+  - platform: sntp
     id: sntp_time
+    servers:
+     - ntp0.ntp-servers.net
+     - ntp1.ntp-servers.net
+     - ntp2.ntp-servers.net
     on_time_sync:
       - script.execute: time_update
     on_time:
@@ -273,21 +275,20 @@ text_sensor:
                                       id: alarm_arm_home_lvgl
                                       bg_color: green
                                       text: "Arm Home"
-
-
+                                else:
+                                  if: 
+                                    condition:
+                                      - lambda: return id(alarm_status).state == "triggered";
+                                    then:
+                                      lvgl.page.show: triggered_page
+                                  
 script:
+
   - id: time_update
     then:
       - lvgl.label.update:
           id: display_time_blank
-          text: !lambda |-
-            static char time_buf[16];
-            auto now = id(sntp_time).now();
-            int hour_12 = now.hour % 12;
-            hour_12 = hour_12 ? hour_12 : 12;  // Convert 0 to 12 for AM/PM
-            const char* period = (now.hour >= 12) ? "PM" : "AM";
-            snprintf(time_buf, sizeof(time_buf), "%d:%02d %s", hour_12, now.minute, period);
-            return time_buf;
+          text: !lambda return id(sntp_time).now().strftime("%I:%M%P");
 
       - lvgl.label.update:
           id: display_day
@@ -295,7 +296,11 @@ script:
             static const char * const days_en[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
             static char date_buf[32];
             auto now = id(sntp_time).now();
-            snprintf(date_buf, sizeof(date_buf), "%s", days_en[now.day_of_week - 1]);
+            const char * const * day_names;
+
+            day_names = days_en;
+           
+            snprintf(date_buf, sizeof(date_buf), "%s", day_names[now.day_of_week - 1]);
             return date_buf;
 
       - lvgl.label.update:
@@ -320,14 +325,18 @@ script:
             snprintf(date_buf, sizeof(date_buf), "%s %d%s '%02d",
                     months[now.month - 1], day, suffix, now.year % 100);
             return date_buf;
-
   - id: backlight_off      
     then:
       - switch.turn_on: back_light
       - delay: 60s
-      - lvgl.page.show: clock_page
-      - delay: 180s
-      - switch.turn_off: back_light
+      - if:
+          condition:
+            not:
+              - lambda: return id(alarm_status).state == "triggered";
+          then:
+            - lvgl.page.show: clock_page
+            - delay: 180s
+            - switch.turn_off: back_light
     mode: restart
 
   - id: weather_update
@@ -643,8 +652,153 @@ binary_sensor:
     on_state:
       then:
         script.execute: backlight_off
-     
+
+  - platform: homeassistant
+    id: living_ceiling_state
+    entity_id: light.livingroom_ceiling_led_colorflux_ls3
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: livingroom_ceiling_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: livingroom_ceiling_lvgl
+                  text_color: yellow
+            else:
+              - lvgl.label.update:
+                  id: livingroom_ceiling_lvgl
+                  text_color: white
+
+  - platform: homeassistant
+    id: stove_state
+    entity_id: light.stove
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: kitchen_stove_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: kitchen_stove_lvgl
+                  text_color: yellow
+            else:
+              - lvgl.label.update:
+                  id: kitchen_stove_lvgl
+                  text_color: white
+
+  - platform: homeassistant
+    id: dining_light_state
+    entity_id: light.dining_room_lights
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: dining_room_lights_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: dining_room_lights_lvgl
+                  text_color: yellow
+            else:
+              - lvgl.label.update:
+                  id: dining_room_lights_lvgl
+                  text_color: white
+  - platform: homeassistant
+    id: all_lights_state
+    entity_id: light.all_lights
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: lights_status_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: lights_status_lvgl
+                  text_color: red
+            else:
+              - lvgl.label.update:
+                  id: lights_status_lvgl
+                  text_color: green    
+
+  - platform: homeassistant
+    id: all_windows_state
+    entity_id: binary_sensor.windows
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: lights_status_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: window_status_lvgl
+                  text_color: red
+                  text:  "\U000F05B1"
+            else:
+              - lvgl.label.update:
+                  id: window_status_lvgl
+                  text_color: green
+                  text: "\U000F05AE"
+                  
+  - platform: homeassistant
+    id: all_doors_state
+    entity_id: binary_sensor.windows
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: door_status_lvgl
+            state:
+              checked: !lambda return x;
+        - if:
+            condition:
+              lambda: return x == true;  
+            then:
+              - lvgl.label.update:
+                  id: door_status_lvgl
+                  text_color: red
+                  text:  "\U000F081C"
+            else:
+              - lvgl.label.update:
+                  id: door_status_lvgl
+                  text_color: green 
+                  text: "\U000F081B"
+                  
 font:
+
+  - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
+    id: my_font80
+    size: 80
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font40
@@ -652,17 +806,10 @@ font:
     # bpp: 4     
     glyphs:
       '${font_glyphs}'
-  
+   
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
-    id: my_font115
-    size: 100
-    # bpp: 4     
-    glyphs:
-      '${font_glyphs}'
-
-  - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
-    id: my_font120
-    size: 220
+    id: my_font160
+    size: 160
     glyphs:
       '${font_glyphs}'
 
@@ -725,6 +872,14 @@ font:
       - "\U000F068A"#alarm home
       - "\U000F099D"#alarm away
       - "\U000F099E"#disarmed
+      - "\U000F081B"#door closed
+      - "\U000F081C"#door open
+      - "\U000F1254"#lights group
+      - "\U000F05B1"#windows open
+      - "\U000F05AE"#windows closed 
+
+
+
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
     size: 120
@@ -915,15 +1070,48 @@ lvgl:
       height: 20%    
       border_width: 0
       radius: 0
+
+    - id: triggered_content
+      bg_color: red
+      text_color: amber
+      text_align: CENTER
+      width: 100%
+      height: 100%    
+      align: TOP_MID
+      border_width: 0
+      radius: 0     
  
                              
 ########## bottom bar ##########
+
+  # msgboxes:
+    # - id: dimmer_box
+      # close_button: true
+      # title: Ceiling Light
+      # bg_color: bg_charcoal
+      # buttons:
+        # - id: msgbox_close
+          # text: "\uF00D"
+          # on_click:
+            # then:
+              # - lvgl.widget.hide: dimmer_box
+      # widgets:
+        # - slider:
+            # x: 10
+            # y: 10
+            # height: 220
+            # id: slider_id
+            # value: 100
+            # min_value: 0
+            # max_value: 100
+
   top_layer:
       widgets:
         - obj:
             id: bottom_bar
             styles: bottom_content_bar
             text_color: grey
+            scrollbar_mode: "OFF"
             widgets:            
               - label:
                   id: out_temp_lvgl_icon
@@ -1045,7 +1233,8 @@ lvgl:
                         action: light.toggle
                         data:
                           entity_id: light.entrance_ceiling
-                          
+                    # - lvgl.widget.show: dimmer_box
+    
               - label:
                   grid_cell_column_pos: 1 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
@@ -1102,6 +1291,7 @@ lvgl:
                         action: light.toggle
                         data:
                           entity_id: light.hallway_ceiling
+
               - label:                        
                   grid_cell_column_pos: 3 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
@@ -1227,7 +1417,6 @@ lvgl:
         - switch.turn_on: home_page_flag       
       on_unload:
         - switch.turn_off: home_page_flag
- 
 
 ############ clock page ##############
     - id: clock_page
@@ -1243,7 +1432,7 @@ lvgl:
                   width: 100%
                   text_align: CENTER
                   text_color: red
-                  text_font: my_font115
+                  text_font: my_font160
                   text: " " 
               - label:
                   id: display_day
@@ -1260,6 +1449,30 @@ lvgl:
                   translate_y: 120
                   translate_x: 100
                   text_font: montserrat_48
+
+              - label:
+                  id: door_status_lvgl
+                  align: TOP_LEFT
+                  text_font: icon_font_60
+                  text_color: green
+                  text: "\U000F081B"
+
+              - label:
+                  id: window_status_lvgl
+                  align: TOP_LEFT
+                  translate_x: 80
+                  text_font: icon_font_60
+                  text_color: green
+                  text: "\U000F05AE"
+
+              - label:
+                  id: lights_status_lvgl
+                  align: TOP_LEFT
+                  translate_x: 160
+                  text_font: icon_font_60
+                  text_color: green
+                  text: "\U000F1254"
+
       
 ########## alarm page #################
     - id: alarm_page
@@ -1284,6 +1497,7 @@ lvgl:
                   height: 100%
                   bg_opa: COVER
                   bg_color: green
+                  pad_top: 20
 
             on_press:
               - homeassistant.service:
@@ -1293,7 +1507,6 @@ lvgl:
                     code: !lambda return id(current_pin).c_str();
               - lambda: |-
                   id(current_pin) = ""; 
-
         - obj:
             width: 500
             height: 85
@@ -1314,7 +1527,7 @@ lvgl:
                   height: 100%
                   bg_opa: COVER
                   bg_color: green
-
+                  pad_top: 20
             on_press:
               - homeassistant.service:
                   service: alarm_control_panel.alarm_arm_night
@@ -1343,7 +1556,7 @@ lvgl:
                   height: 100%
                   bg_opa: COVER
                   bg_color: green
-
+                  pad_top: 20
             on_press:
               - homeassistant.service:
                   service: alarm_control_panel.alarm_arm_away
@@ -1444,3 +1657,88 @@ lvgl:
                     control:
                       no_repeat: true
                       recolor: true
+
+    - id: triggered_page
+      widgets:
+        - obj: 
+            styles: triggered_content
+            border_width: 0
+            text_color: white
+            bg_color: red
+            widgets: 
+              - label:
+                  align: TOP_MID
+                  width: 100%
+                  height: 100%
+                  text_align: CENTER
+                  translate_y: 50
+                  text_font: my_font80
+                  text: "ALARM" 
+              - label:
+                  align: CENTER
+                  width: 100%
+                  height: 100%
+                  text_align: CENTER
+                  translate_y: 150
+                  text_font: my_font80
+                  text: "TRIGGERED" 
+              - label:
+                  width: 80
+                  height: 80
+                  translate_x: 20
+                  translate_y: 20
+                  align: BOTTOM_RIGHT
+                  text_color: white
+                  text_font: icon_font_60
+                  text: "\U000F02DC"
+                  on_click:
+                    if:
+                      condition:
+                        not:
+                          - lambda: return id(alarm_status).state == "triggered"; 
+                      then:
+                        - lvgl.page.show: clock_page
+              - button:
+                  checkable: true
+                  id: disarm_button
+                  align: BOTTOM_MID
+                  pressed:
+                    bg_color: red
+                  widgets:
+                    - label:
+                        text_font: my_font40
+                        text: "Disarm"
+                        align: CENTER  
+                  on_press:
+                    lvgl.page.show: disarm_page
+
+      on_load:
+        - lvgl.widget.hide: bottom_bar  
+        - script.stop: backlight_off
+        - switch.turn_on: back_light
+      on_unload:
+        - lvgl.widget.show: bottom_bar
+        - script.execute: backlight_off
+    - id: settings_page
+      styles: main_content
+      widgets:    
+        - obj:
+            width: 500
+            height: 85
+            align: TOP_MID
+            scrollbar_mode: "OFF"         
+            bg_opa: TRANSP   
+            pad_all: 0
+            widgets:
+              - label:
+                  id: wifi_set_lvgl
+                  align: CENTER
+                  text_align: CENTER
+                  text_font: montserrat_40
+                  text: "Arm Home"
+                  text_color: white
+                  width: 100%
+                  height: 100%
+                  bg_opa: COVER
+                  bg_color: green
+                  pad_top: 20
