@@ -654,7 +654,7 @@ binary_sensor:
 
   - platform: homeassistant
     id: stairs_motion
-    entity_id: binary_sensor.top_stairs_motio
+    entity_id: binary_sensor.top_stairs_motion
     internal: true
     publish_initial_state: true
     on_state:
