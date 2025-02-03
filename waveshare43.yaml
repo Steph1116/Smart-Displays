@@ -276,15 +276,17 @@ text_sensor:
 
 
 script:
-
   - id: time_update
     then:
       - lvgl.label.update:
           id: display_time_blank
           text: !lambda |-
             static char time_buf[16];
-            auto now = id(sntp_time).now();            
-            snprintf(time_buf, sizeof(time_buf), "%02d:%02d", now.hour, now.minute);
+            auto now = id(sntp_time).now();
+            int hour_12 = now.hour % 12;
+            hour_12 = hour_12 ? hour_12 : 12;  // Convert 0 to 12 for AM/PM
+            const char* period = (now.hour >= 12) ? "PM" : "AM";
+            snprintf(time_buf, sizeof(time_buf), "%d:%02d %s", hour_12, now.minute, period);
             return time_buf;
 
       - lvgl.label.update:
@@ -293,25 +295,32 @@ script:
             static const char * const days_en[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
             static char date_buf[32];
             auto now = id(sntp_time).now();
-            const char * const * day_names;
-
-            day_names = days_en;
-           
-            snprintf(date_buf, sizeof(date_buf), "%s", day_names[now.day_of_week - 1]);
+            snprintf(date_buf, sizeof(date_buf), "%s", days_en[now.day_of_week - 1]);
             return date_buf;
 
       - lvgl.label.update:
           id: display_date
           text: !lambda |-
-            static const char * const mon_en[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
-            static char month_buf[32];
+            static const char * const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                                                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
             auto now = id(sntp_time).now();
-            const char * const * mon_names;
+            int day = now.day_of_month;
+            const char *suffix;
+            if (day >= 11 && day <= 13) {
+                suffix = "th";
+            } else {
+                switch (day % 10) {
+                    case 1: suffix = "st"; break;
+                    case 2: suffix = "nd"; break;
+                    case 3: suffix = "rd"; break;
+                    default: suffix = "th"; break;
+                }
+            }
+            static char date_buf[32];
+            snprintf(date_buf, sizeof(date_buf), "%s %d%s '%02d",
+                    months[now.month - 1], day, suffix, now.year % 100);
+            return date_buf;
 
-            mon_names = mon_en;
-
-            snprintf(month_buf, sizeof(month_buf), "%02d %s", now.day_of_month, mon_names[now.month - 1]);
-            return month_buf;
   - id: backlight_off      
     then:
       - switch.turn_on: back_light
@@ -643,7 +652,14 @@ font:
     # bpp: 4     
     glyphs:
       '${font_glyphs}'
-   
+  
+  - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
+    id: my_font115
+    size: 100
+    # bpp: 4     
+    glyphs:
+      '${font_glyphs}'
+
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font120
     size: 220
@@ -1096,7 +1112,7 @@ lvgl:
                  
 ## second row ##
               - button:
-                  checkable: false
+                  checkable: true
                   id: button_5
                   grid_cell_column_pos: 0
                   grid_cell_row_pos: 2
@@ -1106,27 +1122,27 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        id: fan_lvgl
+                        id: livingroom_ceiling_lvgl
                         text_font: icon_font_120
-                        text: "\U000F07D0"  
+                        text: "\U000F04B9"  
                         align: CENTER
                   on_press:
                     then: 
                       - homeassistant.service:
-                          service: switch.toggle
+                          service: light.toggle
                           data:
-                            entity_id: switch.fan_fan
+                            entity_id: light.livingroom_ceiling_led_colorflux_ls3
                   
               - label:
                   grid_cell_column_pos: 0 # place the widget in
                   grid_cell_row_pos: 3 # the corresponding cell
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
+                  text: "Livingroom"
                   text_align: CENTER                  
 
               - button:
-                  checkable: false
+                  checkable: true
                   id: button_6
                   grid_cell_column_pos: 1
                   grid_cell_row_pos: 2
@@ -1136,27 +1152,27 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        id: tall_lamp_lvgl
+                        id: kitchen_stove_lvgl
                         text_font: icon_font_120
-                        text: "\U000F07D0"
+                        text: "\U000F0769"
                         align: CENTER
                   on_press:
                     then: 
                       - homeassistant.service:
-                          service: switch.toggle
+                          service: light.toggle
                           data:
-                            entity_id: switch.sitting_room_s1
+                            entity_id: light.stove
                    
               - label:
                   grid_cell_column_pos: 1 # place the widget in
                   grid_cell_row_pos: 3 # the corresponding cell
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
+                  text: "Kitchen"
                   text_align: CENTER                  
 
               - button:
-                  checkable: false
+                  checkable: true
                   id: button_7
                   grid_cell_column_pos: 2
                   grid_cell_row_pos: 2
@@ -1166,23 +1182,23 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        id: wall_lamp_lvgl
+                        id: dining_room_lights_lvgl
                         text_font: icon_font_120
-                        text: "\U000F07D0"  
+                        text: "\U000F1061"  
                         align: CENTER
                   on_press:
                     then: 
                       - homeassistant.service:
-                          service: switch.toggle
+                          service: light.toggle
                           data:
-                            entity_id: switch.wall_light_esp
+                            entity_id: light.dining_room_lights
                          
               - label:
                   grid_cell_column_pos: 2
                   grid_cell_row_pos: 3 
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
+                  text: "DiningRM"
                   text_align: CENTER                  
 
               - button:
@@ -1227,7 +1243,7 @@ lvgl:
                   width: 100%
                   text_align: CENTER
                   text_color: red
-                  text_font: my_font120
+                  text_font: my_font115
                   text: " " 
               - label:
                   id: display_day
