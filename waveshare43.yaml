@@ -27,11 +27,11 @@ logger:
 wifi: 
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  use_address: 192.168.1.127
-  # manual_ip:
-    # static_ip: 192.168.2.147
-    # gateway: 192.168.2.1
-    # subnet: 255.255.255.0
+  #use_address: 192.168.1.127
+  manual_ip:
+    static_ip: 192.168.2.147
+    gateway: 192.168.2.1
+    subnet: 255.255.255.0
 ota:
   platform: esphome
   
@@ -118,6 +118,24 @@ display:
         - 47        #g6
         - 21        #g7
 
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          static int countdown = 0;
+          if (id(countdown_control).state) {
+            if (countdown == 0) {
+              countdown = 60;
+            }
+            if (countdown > 0) {
+              id(countdown_timer).publish_state((std::to_string(countdown) + "seconds").c_str());
+              countdown--;
+            } else {
+              id(countdown_timer).publish_state("Time's up!");
+              id(countdown_control).turn_off();  // Auto turn off switch when countdown finishes
+            }
+          }
 globals:
   - id: current_pin
     type: std::string
@@ -142,7 +160,12 @@ switch:
       mode:
         output: true
       inverted: false 
- 
+  - platform: template
+    id: countdown_control
+    # name: count
+    optimistic: true
+    # on_turn_on:
+      # - lvgl.page.show: disarming_page
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -266,6 +289,7 @@ text_sensor:
                                       id: alarm_arm_home_lvgl
                                       bg_color: green
                                       text: "Arm Home"
+                                  - switch.turn_off: countdown_control
                                 else:
                                   if: 
                                     condition:
@@ -277,8 +301,16 @@ text_sensor:
                                         condition:
                                           - lambda: return id(alarm_status).state == "pending";
                                         then: 
-                                          lvgl.page.show: disarming_page
-   
+                                          - lvgl.page.show: disarming_page
+                                          - switch.turn_on: countdown_control
+  - platform: template
+    id: countdown_timer
+    # name: countdown  
+    on_value:
+      - lvgl.label.update: 
+          id: entrance_delay_lvgl
+          text: !lambda return x;
+
 script:
 
   - id: time_update
@@ -1765,9 +1797,9 @@ lvgl:
                   width: 100%
                   height: 100%
                   text_align: CENTER
-                  translate_y: 280
+                  translate_y: 260
                   text_font: my_font80
-                  text: "60s" 
+                  text: " " 
 
               - label:
                   width: 80
