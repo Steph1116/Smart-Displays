@@ -1396,7 +1396,7 @@ lvgl:
                     - label:
                         id: kitchen_stove_lvgl
                         text_font: icon_font_120
-                        text: "\U000F0769"
+                        text: "\U000F04DE"
                         align: CENTER
                   on_press:
                     then: 
