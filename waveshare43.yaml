@@ -323,8 +323,8 @@ script:
                 }
             }
             static char date_buf[32];
-            snprintf(date_buf, sizeof(date_buf), "%s %d%s '%02d",
-                    months[now.month - 1], day, suffix, now.year % 100);
+            snprintf(date_buf, sizeof(date_buf), "%s %d%s",
+                    months[now.month - 1], day, suffix);
             return date_buf;
   - id: backlight_off      
     then:
