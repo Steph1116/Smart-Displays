@@ -897,36 +897,39 @@ font:
       - "\U000F0F38" # mdi-weather-tornado
       - "\U000F059D" # mdi-weather-windy
       - "\U000F059E" # mdi-weather-windy-variant   F072A
-      - "\U000F0450"#refresh
-      - "\U000F0A19"#toggle off
-      - "\U000F0521"#toggle on
-      - "\U000F024A"#garden
-      - "\U000F04C8"#spots
-      - "\U000F1722"#fire off
-      - "\U000F02DC"#home button
-      - "\U000F0B2A"#right
-      - "\U000F04B9"#living room
-      - "\U000F1061"#dining
-      - "\U000F06E8"#light bulb illuminated
-      - "\U000F0335"#light bulb off
-      - "\U000F0210"#fan
-      - "\U000F050F"#temp
-      - "\U000F0769"#ceiling
-      - "\U000F18DD"#ceiling multiple
-      - "\U000F091C"#wall light
-      - "\U000F1B94"#sleep
-      - "\U000F04CD"#stairs
-      - "\U000F07D0"#api connected
-      - "\U000F1828"#armed night
-      - "\U000F068A"#alarm home
-      - "\U000F099D"#alarm away
-      - "\U000F099E"#disarmed
-      - "\U000F081B"#door closed
-      - "\U000F081C"#door open
-      - "\U000F1254"#lights group
-      - "\U000F05B1"#windows open
-      - "\U000F05AE"#windows closed 
-      - "\U000F08D6"#settings
+      - "\U000F0450" # mdi-refresh
+      - "\U000F0A19" # mdi-toggle off
+      - "\U000F0521" # mdi-toggle on
+      - "\U000F024A" # mdi-garden
+      - "\U000F04C8" # mdi-spots
+      - "\U000F1722" # mdi-fire off
+      - "\U000F02DC" # mdi-home button
+      - "\U000F0B2A" # mdi-right
+      - "\U000F04B9" # mdi-living room
+      - "\U000F1061" # mdi-dining
+      - "\U000F04DE" # mdi-kitchen stove
+      - "\U000F1051" # mdi-led strip variant
+      - "\U000F06E8" # mdi-light bulb illuminated
+      - "\U000F0335" # mdi-light bulb off
+      - "\U000F0210" # mdi-fan
+      - "\U000F050F" # mdi-temp
+      - "\U000F0769" # mdi-ceiling
+      - "\U000F18DD" # mdi-ceiling multiple
+      - "\U000F1798" # mdi-ceiling fan light
+      - "\U000F091C" # mdi-wall light
+      - "\U000F1B94" # mdi-sleep
+      - "\U000F04CD" # mdi-stairs
+      - "\U000F07D0" # mdi-api connected
+      - "\U000F1828" # mdi-armed night
+      - "\U000F068A" # mdi-alarm home
+      - "\U000F099D" # mdi-alarm away
+      - "\U000F099E" # mdi-disarmed
+      - "\U000F0483" # mdi-security
+      - "\U000F081B" # mdi-door closed
+      - "\U000F081C" # mdi-door open
+      - "\U000F1254" # mdi-lights group
+      - "\U000F05B1" # mdi-windows open
+      - "\U000F05AE" # mdi-windows closed 
 
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
@@ -1423,7 +1426,7 @@ lvgl:
                     - label:
                         id: dining_room_lights_lvgl
                         text_font: icon_font_120
-                        text: "\U000F1061"  
+                        text: "\U000F1798"  
                         align: CENTER
                   on_press:
                     then: 
