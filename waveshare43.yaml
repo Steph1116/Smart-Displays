@@ -1772,6 +1772,7 @@ lvgl:
             border_width: 0
             text_color: black
             bg_color: amber
+            scrollbar_mode: "off"
             widgets: 
               - label:
                   align: TOP_MID
