@@ -27,11 +27,11 @@ logger:
 wifi: 
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  #use_address: 192.168.1.127
-  manual_ip:
-    static_ip: 192.168.2.147
-    gateway: 192.168.2.1
-    subnet: 255.255.255.0
+  use_address: 192.168.1.127
+  # manual_ip:
+    # static_ip: 192.168.2.147
+    # gateway: 192.168.2.1
+    # subnet: 255.255.255.0
 ota:
   platform: esphome
   
@@ -320,7 +320,11 @@ script:
     then:
       - lvgl.label.update:
           id: display_time_blank
-          text: !lambda return id(sntp_time).now().strftime("%I:%M%P");
+          text: !lambda |-
+            auto now = id(sntp_time).now();
+            int hour = now.hour % 12;
+            if (hour == 0) hour = 12;
+            return str_sprintf("%d:%02d%s", hour, now.minute, now.hour < 12 ? "am" : "pm");
 
       - lvgl.label.update:
           id: display_date
@@ -583,7 +587,14 @@ sensor:
           text:
             format: "%.0f°C"
             args: [ 'x' ]
-                            
+  - platform: homeassistant
+    id: light_brightness
+    entity_id: light.entrance_ceiling
+    attribute: brightness
+    on_value:
+      - lvgl.slider.update:
+          id: dimmer_slider
+          value: !lambda return x;                           
 binary_sensor:
   - platform: homeassistant
     id: outside_light_state
@@ -1143,24 +1154,34 @@ lvgl:
 
   msgboxes:
     - id: dimmer_box
-      close_button: true
-      title: Ceiling Light
+      close_button: false
+      title: o
       bg_color: bg_charcoal
-      buttons:
-        - id: msgbox_close
-          text: "\uF00D"
-          on_click:
-            then:
-              - lvgl.widget.hide: dimmer_box
+      align: TOP_MID
+      width: 60
+      height: 260
+      border_width: 0
+      bg_opa: TRANSP
       widgets:
         - slider:
-            x: 10
-            y: 10
-            height: 220
-            id: slider_id
-            value: 100
+            id: dimmer_slider
+            translate_y: -70
+            translate_x: -10
+            align: TOP_RIGHT
+            width: 30
+            height: 200
+            pad_all: 0
+            value: 255
             min_value: 0
-            max_value: 100
+            max_value: 255
+            on_release:
+              - homeassistant.action:
+                  action: light.turn_on
+                  data:
+                    entity_id: light.entrance_ceiling
+                    brightness: !lambda return int(x);
+              - delay: 250ms
+              - lvgl.widget.hide: dimmer_box
 
   top_layer:
       widgets:
@@ -1290,7 +1311,9 @@ lvgl:
                         action: light.toggle
                         data:
                           entity_id: light.entrance_ceiling
-                    # - lvgl.widget.show: dimmer_box
+                    - lvgl.widget.show: dimmer_box
+                    - delay: 5s
+                    - lvgl.widget.hide: dimmer_box
     
               - label:
                   grid_cell_column_pos: 1 # place the widget in
@@ -1470,6 +1493,7 @@ lvgl:
                   grid_cell_y_align: STRETCH
                   text: " "
                   text_align: CENTER             
+
       on_load:   
         - switch.turn_on: home_page_flag       
       on_unload:
