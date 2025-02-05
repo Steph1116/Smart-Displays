@@ -152,12 +152,12 @@ switch:
           action: light.turn_off
           data:
             entity_id: light.entrance_ceiling
-    on_turn_on: 
-      - homeassistant.action:
-          action: light.turn_on
-          brightness: 100%
+    on_turn_on:
+      - homeassistant.service:
+          service: light.turn_on
           data:
             entity_id: light.entrance_ceiling
+            brightness: '255'
 
   - platform: template
     id: home_page_flag
@@ -1279,9 +1279,8 @@ lvgl:
                         text: "\U000F0769"
                         align: CENTER
                   on_click:
-                    on_click:
-                       switch.toggle: ceiling_light_switch
-   
+                      switch.toggle: ceiling_light_switch
+
               - label:
                   grid_cell_column_pos: 1 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
