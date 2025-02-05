@@ -999,6 +999,8 @@ color:
     hex: '41220D'
   - id: bg_grey
     hex: '4F4F4F'
+  - id: dk_blue
+    hex: '0033cc'
 
 key_collector:
   - source_id: lvgl_keypad
@@ -1039,7 +1041,7 @@ lvgl:
     - device_touchscreen
   theme:
     button:
-      bg_color: light_blue
+      bg_color: dk_blue
       bg_opa: COVER
       border_color: 0x53334B
       border_width: 4
