@@ -583,15 +583,7 @@ sensor:
             - out_temp_lvgl
           text:
             format: "%.0f°C"
-            args: [ 'x' ]
-  - platform: homeassistant
-    id: light_brightness
-    entity_id: light.entrance_ceiling
-    attribute: brightness
-    on_value:
-      - lvgl.slider.update:
-          id: dimmer_slider
-          value: !lambda return x;                           
+            args: [ 'x' ]                        
 binary_sensor:
   - platform: homeassistant
     id: outside_light_state
@@ -1148,38 +1140,6 @@ lvgl:
  
                              
 ########## bottom bar ##########
-
-  msgboxes:
-    - id: dimmer_box
-      close_button: false
-      title: o
-      bg_color: bg_charcoal
-      align: TOP_MID
-      width: 60
-      height: 260
-      border_width: 0
-      bg_opa: TRANSP
-      widgets:
-        - slider:
-            id: dimmer_slider
-            translate_y: -70
-            translate_x: -10
-            align: TOP_RIGHT
-            width: 30
-            height: 200
-            pad_all: 0
-            value: 255
-            min_value: 0
-            max_value: 255
-            on_release:
-              - homeassistant.action:
-                  action: light.turn_on
-                  data:
-                    entity_id: light.entrance_ceiling
-                    brightness: !lambda return int(x);
-              - delay: 250ms
-              - lvgl.widget.hide: dimmer_box
-
   top_layer:
       widgets:
         - obj:
@@ -1308,10 +1268,7 @@ lvgl:
                         action: light.toggle
                         data:
                           entity_id: light.entrance_ceiling
-                    - lvgl.widget.show: dimmer_box
-                    - delay: 5s
-                    - lvgl.widget.hide: dimmer_box
-    
+   
               - label:
                   grid_cell_column_pos: 1 # place the widget in
                   grid_cell_row_pos: 1 # the corresponding cell
