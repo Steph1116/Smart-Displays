@@ -145,6 +145,21 @@ button:
 
 switch:
   - platform: template
+    id: ceiling_light_switch
+    optimistic: true
+    on_turn_off: 
+      - homeassistant.action:
+          action: light.turn_off
+          data:
+            entity_id: light.entrance_ceiling
+    on_turn_on: 
+      - homeassistant.action:
+          action: light.turn_on
+          brightness: 100%
+          data:
+            entity_id: light.entrance_ceiling
+
+  - platform: template
     id: home_page_flag
     optimistic: true
 
@@ -1264,10 +1279,8 @@ lvgl:
                         text: "\U000F0769"
                         align: CENTER
                   on_click:
-                    - homeassistant.action:
-                        action: light.toggle
-                        data:
-                          entity_id: script.entrance_ceiling_off_or_on_max
+                    on_click:
+                       switch.toggle: ceiling_light_switch
    
               - label:
                   grid_cell_column_pos: 1 # place the widget in
