@@ -1480,30 +1480,30 @@ lvgl:
 
               - label:
                   id: door_status_lvgl
-                  align: TOP_LEFT
+                  align: TOP_RIGHT
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F081B"
 
               - label:
                   id: window_status_lvgl
-                  align: TOP_LEFT
-                  translate_x: 80
+                  align: TOP_RIGHT
+                  translate_x: -80
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F05AE"
 
               - label:
                   id: lights_status_lvgl
-                  align: TOP_LEFT
-                  translate_x: 160
+                  align: TOP_RIGHT
+                  translate_x: -160
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F1254"
 
               - label:
                   id: settings_page_lvgl
-                  align: TOP_RIGHT
+                  align: TOP_LEFT
                   # translate_x: 160
                   border_width: 5
                   text_font: icon_font_60
