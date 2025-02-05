@@ -1481,6 +1481,7 @@ lvgl:
               - label:
                   id: door_status_lvgl
                   align: TOP_RIGHT
+                  translate_x: -160
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F081B"
@@ -1496,7 +1497,6 @@ lvgl:
               - label:
                   id: lights_status_lvgl
                   align: TOP_RIGHT
-                  translate_x: -160
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F1254"
