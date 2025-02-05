@@ -1267,7 +1267,7 @@ lvgl:
                     - homeassistant.action:
                         action: light.toggle
                         data:
-                          entity_id: light.entrance_ceiling
+                          entity_id: script.entrance_ceiling_off_or_on_max
    
               - label:
                   grid_cell_column_pos: 1 # place the widget in
