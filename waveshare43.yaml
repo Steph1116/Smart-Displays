@@ -164,6 +164,9 @@ switch:
     id: countdown_control
     # name: count
     optimistic: true
+    on_turn_off: 
+      - lvgl.page.show: clock_page
+      - script.execute: backlight_off        
     # on_turn_on:
       # - lvgl.page.show: disarming_page
 text_sensor:
