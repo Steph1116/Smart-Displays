@@ -1481,6 +1481,8 @@ lvgl:
                   text_color: red
                   text_font: my_font160
                   text: " " 
+                  on_click:
+                    lvgl.page.show: button_page
                   
               - label:
                   id: display_date
