@@ -638,7 +638,8 @@ sensor:
             - out_temp_lvgl
           text:
             format: "%.0f°C"
-            args: [ 'x' ]                        
+            args: [ 'x' ]
+
 binary_sensor:
   - platform: homeassistant
     id: outside_light_state
@@ -651,6 +652,9 @@ binary_sensor:
             id: button_1
             state:
               checked: !lambda return x;
+        - lvgl.widget.update:  # SEPARATE ACTION
+            id: status_outside_light_button
+            hidden: !lambda return !x;
         - if:
             condition:
               lambda: return x == true;  
@@ -673,7 +677,10 @@ binary_sensor:
         - lvgl.widget.update:
             id: button_2
             state:
-              checked: !lambda return x;  
+              checked: !lambda return x;
+        - lvgl.widget.update:  # SEPARATE ACTION
+            id: status_ceiling_light_button
+            hidden: !lambda return !x;
         - if:
             condition:
               lambda: return x == true;  
@@ -988,6 +995,7 @@ font:
       - "\U000F1254" # mdi-lights group
       - "\U000F05B1" # mdi-windows open
       - "\U000F05AE" # mdi-windows closed 
+      - "\U000F0493" # mdi-cog
 
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
@@ -1558,13 +1566,23 @@ lvgl:
               - label:
                   id: settings_page_lvgl
                   align: TOP_LEFT
-                  # translate_x: 160
-                  border_width: 5
+                  translate_x: 20
+                  translate_y: 20
                   text_font: icon_font_60
-                  text_color: black
-                  text: " "
+                  text_color: white
+                  text: "\U000F0493"  # Info icon
                   on_click:
-                    lvgl.page.show: settings_page
+                    lvgl.page.show: status_page
+              #- label:
+              #    id: settings_page_lvgl
+              #    align: TOP_LEFT
+              #    # translate_x: 160
+              #    border_width: 5
+              #    text_font: icon_font_60
+              #    text_color: black
+              #    text: " "
+              #    on_click:
+              #      lvgl.page.show: settings_page
 
 
       
@@ -1925,7 +1943,7 @@ lvgl:
             scrollbar_mode: "OFF"         
             bg_opa: TRANSP   
             pad_all: 0
-            border_width: 5
+            border_width: 0
         - obj:
             width: 350
             height: 310
@@ -1935,4 +1953,50 @@ lvgl:
             scrollbar_mode: "OFF"         
             bg_opa: TRANSP   
             pad_all: 0
-            border_width: 5
+            border_width: 0
+    - id: status_page
+      styles: main_content
+      widgets:
+        - obj:
+            layout: 
+              type: flex
+              flex_flow: column
+              flex_align_main: CENTER
+              flex_align_track: CENTER
+              flex_align_cross: CENTER
+            scrollbar_mode: AUTO
+            align: CENTER
+            width: 100%
+            height: 100%
+            bg_color: black
+            widgets:
+              - button:
+                  id: status_outside_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Outside Light: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.front_outside_light
+              - button:
+                  id: status_ceiling_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Ceiling Light: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - switch.toggle: ceiling_light_switch
+      on_load:
+        - lvgl.widget.update:
+            id: status_outside_light_button
+            hidden: !lambda return !id(outside_light_state).state;
+        - lvgl.widget.update:
+            id: status_ceiling_light_button
+            hidden: !lambda return !id(ceiling_light_state).state;
