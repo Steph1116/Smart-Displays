@@ -42,6 +42,16 @@ time:
         seconds: 0
         then:
           - script.execute: time_update
+      - hours: 2
+        minutes: 0
+        seconds: 0
+        then:
+          - switch.turn_on: switch_antiburn
+      - hours: 2
+        minutes: 15
+        seconds: 0
+        then:
+          - switch.turn_off: switch_antiburn
 
 ch422g:
   - id: io_ex
@@ -65,6 +75,14 @@ touchscreen:
       number: 4
     on_touch:
       - script.execute: backlight_off
+    on_release:
+      then:
+        - if:
+            condition:
+              lvgl.is_paused:
+            then:
+              - lvgl.resume:
+              - lvgl.widget.redraw:
 display:
   - platform: rpi_dpi_rgb
     id: device_display
@@ -181,6 +199,28 @@ switch:
       - script.execute: backlight_off        
     # on_turn_on:
       # - lvgl.page.show: disarming_page
+  - platform: template
+    name: Antiburn
+    id: switch_antiburn
+    icon: mdi:television-shimmer
+    optimistic: true
+    entity_category: "config"
+    turn_on_action:
+      - logger.log: "Starting Antiburn"
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - lvgl.pause:
+          show_snow: true
+    turn_off_action:
+      - logger.log: "Stopping Antiburn"
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
 text_sensor:
   - platform: wifi_info
     ip_address:
