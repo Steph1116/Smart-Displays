@@ -13,9 +13,12 @@ esp32:
     sdkconfig_options:
       CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
       CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
-      CONFIG_SPIRAM_RODATA: y
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+      CONFIG_LV_TICK_PERIOD_MS: "10"  # Quoted string
+      CONFIG_LV_DISP_DEF_REFR_PERIOD: "50"  # Quoted string
   flash_size: 16MB
+
 psram:
   mode: octal
   speed: 80MHz
@@ -916,8 +919,7 @@ font:
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font40
-    size: 40
-    # bpp: 4     
+    size: 40 
     glyphs:
       '${font_glyphs}'
    
@@ -995,7 +997,6 @@ font:
       - "\U000F1254" # mdi-lights group
       - "\U000F05B1" # mdi-windows open
       - "\U000F05AE" # mdi-windows closed 
-      - "\U000F0493" # mdi-cog
 
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
@@ -1547,6 +1548,8 @@ lvgl:
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F081B"
+                  on_click:
+                    lvgl.page.show: status_page
 
               - label:
                   id: window_status_lvgl
@@ -1555,6 +1558,8 @@ lvgl:
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F05AE"
+                  on_click:
+                    lvgl.page.show: status_page
 
               - label:
                   id: lights_status_lvgl
@@ -1562,17 +1567,19 @@ lvgl:
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F1254"
+                  on_click:
+                    lvgl.page.show: status_page
 
               - label:
                   id: settings_page_lvgl
                   align: TOP_LEFT
-                  translate_x: 20
-                  translate_y: 20
+                  # translate_x: 160
+                  border_width: 5
                   text_font: icon_font_60
-                  text_color: white
-                  text: "\U000F0493"  # Info icon
+                  text_color: black
+                  text: " "
                   on_click:
-                    lvgl.page.show: status_page
+                    lvgl.page.show: settings_page
               #- label:
               #    id: settings_page_lvgl
               #    align: TOP_LEFT
@@ -1958,6 +1965,8 @@ lvgl:
       styles: main_content
       widgets:
         - obj:
+            border_width: 0
+            border_opa: 0%
             layout: 
               type: flex
               flex_flow: column
