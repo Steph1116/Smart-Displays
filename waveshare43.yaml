@@ -706,7 +706,10 @@ binary_sensor:
         - lvgl.widget.update:
             id: button_3
             state:
-              checked: !lambda return x;  
+              checked: !lambda return x;
+        - lvgl.widget.update:
+            id: status_stairs_light_button
+            hidden: !lambda return !x;  
         - if:
             condition:
               lambda: return x == true;  
@@ -731,6 +734,9 @@ binary_sensor:
             id: button_4
             state:
               checked: !lambda return x;
+        - lvgl.widget.update:
+            id: status_hallway_light_button
+            hidden: !lambda return !x;
         - if:
             condition:
               lambda: return x == true;  
@@ -781,6 +787,9 @@ binary_sensor:
             id: livingroom_ceiling_lvgl
             state:
               checked: !lambda return x;
+        - lvgl.widget.update:
+            id: status_living_ceiling_button
+            hidden: !lambda return !x;
         - if:
             condition:
               lambda: return x == true;  
@@ -804,6 +813,9 @@ binary_sensor:
             id: kitchen_stove_lvgl
             state:
               checked: !lambda return x;
+        - lvgl.widget.update:
+            id: status_stove_light_button
+            hidden: !lambda return !x;
         - if:
             condition:
               lambda: return x == true;  
@@ -827,6 +839,9 @@ binary_sensor:
             id: dining_room_lights_lvgl
             state:
               checked: !lambda return x;
+        - lvgl.widget.update:
+            id: status_dining_light_button
+            hidden: !lambda return !x;
         - if:
             condition:
               lambda: return x == true;  
@@ -849,6 +864,9 @@ binary_sensor:
             id: lights_status_lvgl
             state:
               checked: !lambda return x;
+        - lvgl.widget.update:
+            id: status_all_lights_button
+            hidden: !lambda return !x;
         - if:
             condition:
               lambda: return x == true;  
@@ -2002,6 +2020,84 @@ lvgl:
                         text_color: white
                   on_click:
                     - switch.toggle: ceiling_light_switch
+              - button:
+                  id: status_stairs_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Stairs Light: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.stairs_led
+              - button:
+                  id: status_hallway_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Hallway Ceiling: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.hallway_ceiling
+              - button:
+                  id: status_living_ceiling_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Livingroom Ceiling: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.livingroom_ceiling_led_colorflux_ls3
+              - button:
+                  id: status_stove_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Kitchen Stove: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.stove
+              - button:
+                  id: status_dining_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Dining Room Lights: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.dining_room_lights
+              - button:
+                  id: status_all_lights_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "All Lights: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.all_lights
       on_load:
         - lvgl.widget.update:
             id: status_outside_light_button
@@ -2009,3 +2105,21 @@ lvgl:
         - lvgl.widget.update:
             id: status_ceiling_light_button
             hidden: !lambda return !id(ceiling_light_state).state;
+        - lvgl.widget.update:
+            id: status_stairs_light_button
+            hidden: !lambda return !id(stairs_light_state).state;
+        - lvgl.widget.update:
+            id: status_hallway_light_button
+            hidden: !lambda return !id(hallway_state).state;
+        - lvgl.widget.update:
+            id: status_living_ceiling_button
+            hidden: !lambda return !id(living_ceiling_state).state;
+        - lvgl.widget.update:
+            id: status_stove_light_button
+            hidden: !lambda return !id(stove_state).state;
+        - lvgl.widget.update:
+            id: status_dining_light_button
+            hidden: !lambda return !id(dining_light_state).state;
+        - lvgl.widget.update:
+            id: status_all_lights_button
+            hidden: !lambda return !id(all_lights_state).state;
