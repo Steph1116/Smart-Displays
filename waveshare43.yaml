@@ -928,6 +928,77 @@ binary_sensor:
                   id: door_status_lvgl
                   text_color: green 
                   text: "\U000F081B"
+  # Front Door
+  - platform: homeassistant
+    id: front_door_state
+    entity_id: binary_sensor.frontdoor_door
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_front_door_label
+            hidden: !lambda return !x;
+
+  # Back Door
+  - platform: homeassistant
+    id: back_door_state
+    entity_id: binary_sensor.backdoor_door
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_back_door_label
+            hidden: !lambda return !x;
+
+  # Bathroom Window
+  - platform: homeassistant
+    id: bathroom_window_state
+    entity_id: binary_sensor.bathroom_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_bathroom_window_label
+            hidden: !lambda return !x;
+
+  # Charles' Window
+  - platform: homeassistant
+    id: charles_window_state
+    entity_id: binary_sensor.charles_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_charles_window_label
+            hidden: !lambda return !x;
+
+  # Media Room Window
+  - platform: homeassistant
+    id: mediaroom_window_state
+    entity_id: binary_sensor.mediaroom_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_mediaroom_window_label
+            hidden: !lambda return !x;
+
+  # Steph's Window
+  - platform: homeassistant
+    id: stephs_window_state
+    entity_id: binary_sensor.stephs_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_stephs_window_label
+            hidden: !lambda return !x;
                   
 font:
 
@@ -1014,7 +1085,8 @@ font:
       - "\U000F081C" # mdi-door open
       - "\U000F1254" # mdi-lights group
       - "\U000F05B1" # mdi-windows open
-      - "\U000F05AE" # mdi-windows closed 
+      - "\U000F05AE" # mdi-windows closed
+      - "\U000F0493" # mdi-cog
 
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
@@ -2098,6 +2170,53 @@ lvgl:
                         action: light.toggle
                         data:
                           entity_id: light.all_lights
+              # Front Door Label
+              - label:
+                  id: status_front_door_label
+                  hidden: true
+                  text: "Front Door: Open"
+                  text_font: my_font40
+                  text_color: white
+
+              # Back Door Label
+              - label:
+                  id: status_back_door_label
+                  hidden: true
+                  text: "Back Door: Open"
+                  text_font: my_font40
+                  text_color: white
+
+              # Bathroom Window Label
+              - label:
+                  id: status_bathroom_window_label
+                  hidden: true
+                  text: "Bathroom Window: Open"
+                  text_font: my_font40
+                  text_color: white
+
+              # Charles' Window Label
+              - label:
+                  id: status_charles_window_label
+                  hidden: true
+                  text: "Charles' Window: Open"
+                  text_font: my_font40
+                  text_color: white
+
+              # Media Room Window Label
+              - label:
+                  id: status_mediaroom_window_label
+                  hidden: true
+                  text: "Media Room Window: Open"
+                  text_font: my_font40
+                  text_color: white
+
+              # Steph's Window Label
+              - label:
+                  id: status_stephs_window_label
+                  hidden: true
+                  text: "Steph's Window: Open"
+                  text_font: my_font40
+                  text_color: white
       on_load:
         - lvgl.widget.update:
             id: status_outside_light_button
@@ -2123,3 +2242,21 @@ lvgl:
         - lvgl.widget.update:
             id: status_all_lights_button
             hidden: !lambda return !id(all_lights_state).state;
+        - lvgl.widget.update:
+            id: status_front_door_label
+            hidden: !lambda return !id(front_door_state).state;
+        - lvgl.widget.update:
+            id: status_back_door_label
+            hidden: !lambda return !id(back_door_state).state;
+        - lvgl.widget.update:
+            id: status_bathroom_window_label
+            hidden: !lambda return !id(bathroom_window_state).state;
+        - lvgl.widget.update:
+            id: status_charles_window_label
+            hidden: !lambda return !id(charles_window_state).state;
+        - lvgl.widget.update:
+            id: status_mediaroom_window_label
+            hidden: !lambda return !id(mediaroom_window_state).state;
+        - lvgl.widget.update:
+            id: status_stephs_window_label
+            hidden: !lambda return !id(stephs_window_state).state;
