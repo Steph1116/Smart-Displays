@@ -4,7 +4,7 @@ esphome:
   name: s3box-bedroom-display
   friendly_name: S3Box Bedroom Display
   on_boot:
-    - lambda: id(back_light).turn_on().set_brightness(.1).set_transition_length(1).perform(); 
+    - lambda: id(back_light).turn_on().set_brightness(1.0).set_transition_length(1).perform(); 
 
 esp32:
   board: esp32s3box
@@ -27,7 +27,7 @@ logger:
 wifi: 
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  # use_address: 192.168.1.127
+  use_address: 192.168.1.142
   # manual_ip:
     # static_ip: 192.168.2.147
     # gateway: 192.168.2.1
@@ -576,6 +576,17 @@ sensor:
           id: dimmer_slider
           value: !lambda return x;                           
 binary_sensor:
+  - platform: gt911
+    id: home_button
+    index: 0
+    on_press:
+      - if:
+          condition:
+            switch.is_on: home_page_flag
+          then: 
+            lvgl.page.show: clock_page
+          else:
+            lvgl.page.show: button_page
   - platform: homeassistant
     id: outside_light_state
     entity_id: light.front_outside_light
@@ -858,7 +869,7 @@ font:
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_80
-    size: 80
+    size: 40
     bpp: 4
     glyphs: &icon_glyphs 
       - "\U000F0590" # mdi-weather-cloudy
@@ -928,23 +939,23 @@ font:
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
-    size: 120
+    size: 60
     glyphs: *icon_glyphs
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_60
-    size: 60
+    size: 30
     bpp: 4
     glyphs: *icon_glyphs
           
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_180
-    size: 180
+    size: 90
     glyphs: *icon_glyphs
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_40
-    size: 40
+    size: 20
     bpp: 4
     glyphs: *icon_glyphs 
      
@@ -1112,7 +1123,7 @@ lvgl:
       bg_color: bg_charcoal
       text_color: amber
       text_align: left
-      text_font: my_font40
+      text_font: montserrat_10
       align: BOTTOM_LEFT
       width: 100%
       height: 20%    
@@ -1196,7 +1207,7 @@ lvgl:
                   id: display_weather_text
                   align: CENTER
                   translate_x: 60
-                  text_font: montserrat_40
+                  text_font: montserrat_20
                   text: " " 
 
               - label:
@@ -1234,7 +1245,7 @@ lvgl:
       widgets:
         - obj: 
             styles: main_content
-            text_font: montserrat_30
+            text_font: montserrat_15
             layout: 
               pad_column: 10
               pad_row: 2
@@ -1495,7 +1506,7 @@ lvgl:
                   width: 100%
                   text_align: CENTER
                   text_color: red
-                  text_font: my_font160
+                  text_font: montserrat_48
                   text: " " 
                   
               - label:
@@ -1504,7 +1515,7 @@ lvgl:
                   text: " "
                   translate_y: 120
                   # translate_x: 100
-                  text_font: montserrat_48
+                  text_font: montserrat_24
 
               - label:
                   id: door_status_lvgl
@@ -1539,8 +1550,6 @@ lvgl:
                   text: " "
                   on_click:
                     lvgl.page.show: settings_page
-
-
       
 ########## alarm page #################
     - id: alarm_page
@@ -1558,7 +1567,7 @@ lvgl:
                   id: alarm_arm_home_lvgl
                   align: CENTER
                   text_align: CENTER
-                  text_font: montserrat_40
+                  text_font: montserrat_20
                   text: "Arm Home"
                   text_color: white
                   width: 100%
@@ -1587,7 +1596,7 @@ lvgl:
               - label:
                   id: alarm_arm_night_lvgl
                   align: CENTER
-                  text_font: montserrat_40
+                  text_font: montserrat_20
                   text_align: CENTER
                   text: "Arm Night"
                   text_color: white
@@ -1616,7 +1625,7 @@ lvgl:
               - label:
                   id: alarm_arm_away_lvgl
                   align: CENTER
-                  text_font: montserrat_40
+                  text_font: montserrat_20
                   text_align: CENTER
                   text: "Arm Away"
                   text_color: white
@@ -1645,7 +1654,7 @@ lvgl:
               - label:
                   id: lvgl_label
                   align: TOP_RIGHT
-                  text_font: montserrat_40
+                  text_font: montserrat_20
                   text: "Enter Code"
                   text_align: CENTER
                   text_color: grey
@@ -1674,7 +1683,7 @@ lvgl:
             y: 10
             width: 400
             height: 360
-            text_font: montserrat_40
+            text_font: montserrat_20
             bg_color: bg_charcoal
             border_width: 0
             items:
@@ -1740,7 +1749,7 @@ lvgl:
                   height: 100%
                   text_align: CENTER
                   translate_y: 50
-                  text_font: my_font80
+                  text_font: montserrat_40
                   text: "ALARM" 
               - label:
                   align: CENTER
@@ -1748,7 +1757,7 @@ lvgl:
                   height: 100%
                   text_align: CENTER
                   translate_y: 150
-                  text_font: my_font80
+                  text_font: montserrat_40
                   text: "TRIGGERED" 
               - label:
                   width: 80
@@ -1774,7 +1783,7 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        text_font: my_font40
+                        text_font: montserrat_20
                         text: "Disarm"
                         align: CENTER  
                   on_press:
@@ -1794,7 +1803,7 @@ lvgl:
                   height: 100%
                   text_align: CENTER
                   translate_y: 50
-                  text_font: my_font80
+                  text_font: montserrat_40
                   text: "ALARM" 
 
               - label:
@@ -1803,7 +1812,7 @@ lvgl:
                   height: 100%
                   text_align: CENTER
                   translate_y: 150
-                  text_font: my_font80
+                  text_font: montserrat_40
                   text: "Entrance Delay" 
 
               - label:
@@ -1813,7 +1822,7 @@ lvgl:
                   height: 100%
                   text_align: CENTER
                   translate_y: 260
-                  text_font: my_font80
+                  text_font: montserrat_40
                   text: " " 
 
               - label:
@@ -1840,7 +1849,7 @@ lvgl:
                     bg_color: red
                   widgets:
                     - label:
-                        text_font: my_font40
+                        text_font: montserrat_20
                         text: "Disarm"
                         align: CENTER  
                   on_press:
@@ -1868,7 +1877,7 @@ lvgl:
               - label:
                   align: CENTER
                   text_align: left
-                  text_font: montserrat_40
+                  text_font: montserrat_20
                   text: "Settings"
                   text_color: white
                   width: 80%
