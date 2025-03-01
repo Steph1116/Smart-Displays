@@ -45,7 +45,16 @@ time:
         seconds: 0
         then:
           - script.execute: time_update
-
+      - hours: 2
+        minutes: 0
+        seconds: 0
+        then:
+          - switch.turn_on: switch_antiburn
+      - hours: 2
+        minutes: 15
+        seconds: 0
+        then:
+          - switch.turn_off: switch_antiburn
 
 i2c:
   - id: bus_a
@@ -137,6 +146,20 @@ button:
 
 switch:
   - platform: template
+    id: ceiling_light_switch
+    optimistic: true
+    on_turn_off: 
+      - homeassistant.action:
+          action: light.turn_off
+          data:
+            entity_id: light.entrance_ceiling
+    on_turn_on:
+      - homeassistant.service:
+          service: light.turn_on
+          data:
+            entity_id: light.entrance_ceiling
+            brightness: '255'
+  - platform: template
     id: home_page_flag
     optimistic: true
 
@@ -149,6 +172,28 @@ switch:
       - script.execute: backlight_off        
     # on_turn_on:
       # - lvgl.page.show: disarming_page
+  - platform: template
+    name: Antiburn
+    id: switch_antiburn
+    icon: mdi:television-shimmer
+    optimistic: true
+    entity_category: "config"
+    turn_on_action:
+      - logger.log: "Starting Antiburn"
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - lvgl.pause:
+          show_snow: true
+    turn_off_action:
+      - logger.log: "Stopping Antiburn"
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -309,41 +354,17 @@ script:
       - lvgl.label.update:
           id: display_date
           text: !lambda |-
-            static const char * const days_en[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-            static const char * const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+            static const char * const days[] = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
+            static const char * const months[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
             
             auto now = id(sntp_time).now();
-            
-            const char * const * day_names = days_en;
-            const char * day_name = day_names[now.day_of_week - 1];
-            
-            int day = now.day_of_month;
-            const char *suffix;
-            if (day >= 11 && day <= 13) {
-                suffix = "th";
-            } else {
-                switch (day % 10) {
-                    case 1: suffix = "st"; break;
-                    case 2: suffix = "nd"; break;
-                    case 3: suffix = "rd"; break;
-                    default: suffix = "th"; break;
-                }
-            }
+            const char *suffix = (now.day_of_month > 10 && now.day_of_month < 14) ? "th" : 
+              (const char*[]){"th","st","nd","rd","th","th","th","th","th","th"}[now.day_of_month % 10];
             
             static char date_buf[64];
-            snprintf(date_buf, sizeof(date_buf), "%s, %s %d%s %04d",
-            day_name, months[now.month - 1], day, suffix, now.year);  // Removed % 100
+            snprintf(date_buf, sizeof(date_buf), "%s, %s %d%s %04d", 
+              days[now.day_of_week - 1], months[now.month - 1], now.day_of_month, suffix, now.year);
             return date_buf;
-
-          # text: !lambda |-
-            # static const char * const days_en[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-            # static char date_buf[32];
-            # auto now = id(sntp_time).now();
-            # const char * const * day_names;
-            # day_names = days_en;
-            # snprintf(date_buf, sizeof(date_buf), "%s", day_names[now.day_of_week - 1]);
-            # return date_buf;
 
   - id: backlight_off      
     then:
@@ -555,7 +576,6 @@ sensor:
     entity_category: "diagnostic"
     device_class: ""   
     
-                   
   - platform: homeassistant
     id: out_temp
     entity_id: sensor.outside_temperature
@@ -566,15 +586,7 @@ sensor:
             - out_temp_lvgl
           text:
             format: "%.0f°C"
-            args: [ 'x' ]
-  - platform: homeassistant
-    id: light_brightness
-    entity_id: light.entrance_ceiling
-    attribute: brightness
-    on_value:
-      - lvgl.slider.update:
-          id: dimmer_slider
-          value: !lambda return x;                           
+            args: [ 'x' ]                     
 binary_sensor:
   - platform: gt911
     id: home_button
@@ -847,6 +859,71 @@ binary_sensor:
                   id: door_status_lvgl
                   text_color: green 
                   text: "\U000F081B"
+  - platform: homeassistant
+    id: front_door_state
+    entity_id: binary_sensor.frontdoor_door
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_front_door_label
+            hidden: !lambda return !x;
+
+  - platform: homeassistant
+    id: back_door_state
+    entity_id: binary_sensor.backdoor_door
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_back_door_label
+            hidden: !lambda return !x;
+
+  - platform: homeassistant
+    id: bathroom_window_state
+    entity_id: binary_sensor.bathroom_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_bathroom_window_label
+            hidden: !lambda return !x;
+
+  - platform: homeassistant
+    id: charles_window_state
+    entity_id: binary_sensor.charles_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_charles_window_label
+            hidden: !lambda return !x;
+
+  - platform: homeassistant
+    id: mediaroom_window_state
+    entity_id: binary_sensor.mediaroom_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_mediaroom_window_label
+            hidden: !lambda return !x;
+
+  - platform: homeassistant
+    id: stephs_window_state
+    entity_id: binary_sensor.stephs_window
+    internal: true
+    publish_initial_state: true
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: status_stephs_window_label
+            hidden: !lambda return !x;
                   
 font:
 
@@ -1139,41 +1216,8 @@ lvgl:
       align: TOP_MID
       border_width: 0
       radius: 0     
- 
-                             
+                            
 ########## bottom bar ##########
-
-  msgboxes:
-    - id: dimmer_box
-      close_button: false
-      title: o
-      bg_color: bg_charcoal
-      align: TOP_MID
-      width: 60
-      height: 260
-      border_width: 0
-      bg_opa: TRANSP
-      widgets:
-        - slider:
-            id: dimmer_slider
-            translate_y: -70
-            translate_x: -10
-            align: TOP_RIGHT
-            width: 30
-            height: 200
-            pad_all: 0
-            value: 255
-            min_value: 0
-            max_value: 255
-            on_release:
-              - homeassistant.action:
-                  action: light.turn_on
-                  data:
-                    entity_id: light.entrance_ceiling
-                    brightness: !lambda return int(x);
-              - delay: 250ms
-              - lvgl.widget.hide: dimmer_box
-
   top_layer:
       widgets:
         - obj:
@@ -1239,13 +1283,14 @@ lvgl:
                         lvgl.page.show: disarm_page
                       else:
                         lvgl.page.show: alarm_page
+
 ######### buttons page ################
   pages:
     - id: button_page
       widgets:
         - obj: 
             styles: main_content
-            text_font: montserrat_15
+            text_font: montserrat_12
             layout: 
               pad_column: 10
               pad_row: 2
@@ -1275,8 +1320,8 @@ lvgl:
                         data:
                           entity_id: light.front_outside_light
               - label:
-                  grid_cell_column_pos: 0 # place the widget in
-                  grid_cell_row_pos: 1 # the corresponding cell
+                  grid_cell_column_pos: 0 
+                  grid_cell_row_pos: 1 
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   text: "Outside"
@@ -1298,19 +1343,11 @@ lvgl:
                         text: "\U000F0769"
                         align: CENTER
                   on_click:
+                      switch.toggle: ceiling_light_switch
 
-                    - homeassistant.service:
-                        service: light.turn_on
-                        data:
-                          entity_id: light.entrance_ceiling
-                          brightness: "255"
-                    - lvgl.widget.show: dimmer_box
-                    - delay: 5s
-                    - lvgl.widget.hide: dimmer_box
-    
               - label:
-                  grid_cell_column_pos: 1 # place the widget in
-                  grid_cell_row_pos: 1 # the corresponding cell
+                  grid_cell_column_pos: 1 
+                  grid_cell_row_pos: 1 
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   text: "Ceiling"
@@ -1337,8 +1374,8 @@ lvgl:
                         data:
                           entity_id: light.stairs_led                                  
               - label:
-                  grid_cell_column_pos: 2 # place the widget in
-                  grid_cell_row_pos: 1 # the corresponding cell
+                  grid_cell_column_pos: 2 
+                  grid_cell_row_pos: 1 
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   text: "Stairs"
@@ -1401,7 +1438,7 @@ lvgl:
                   grid_cell_row_pos: 3 # the corresponding cell
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: "Livingroom"
+                  text: "LivingRM"
                   text_align: CENTER                  
 
               - button:
@@ -1508,6 +1545,8 @@ lvgl:
                   text_color: red
                   text_font: montserrat_48
                   text: " " 
+                  on_click:
+                    lvgl.page.show: button_page
                   
               - label:
                   id: display_date
@@ -1523,6 +1562,8 @@ lvgl:
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F081B"
+                  on_click:
+                    lvgl.page.show: status_page
 
               - label:
                   id: window_status_lvgl
@@ -1531,6 +1572,8 @@ lvgl:
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F05AE"
+                  on_click:
+                    lvgl.page.show: status_page
 
               - label:
                   id: lights_status_lvgl
@@ -1539,6 +1582,8 @@ lvgl:
                   text_font: icon_font_60
                   text_color: green
                   text: "\U000F1254"
+                  on_click:
+                    lvgl.page.show: status_page
 
               - label:
                   id: settings_page_lvgl
@@ -1550,7 +1595,7 @@ lvgl:
                   text: " "
                   on_click:
                     lvgl.page.show: settings_page
-      
+
 ########## alarm page #################
     - id: alarm_page
       styles: main_content
@@ -1642,8 +1687,8 @@ lvgl:
                     code: !lambda return id(current_pin).c_str();
               - lambda: |-
                   id(current_pin) = ""; 
- 
 
+########## disarm page #################
     - id: disarm_page
       styles: main_content
       widgets:
@@ -1735,6 +1780,7 @@ lvgl:
                       no_repeat: true
                       recolor: true
 
+########## triggered page #################
     - id: triggered_page
       widgets:
         - obj: 
@@ -1788,6 +1834,8 @@ lvgl:
                         align: CENTER  
                   on_press:
                     lvgl.page.show: disarm_page
+
+########## disarming page #################
     - id: disarming_page
       widgets:
         - obj: 
@@ -1862,7 +1910,7 @@ lvgl:
         - lvgl.widget.show: bottom_bar
         - script.execute: backlight_off
 
-
+########## settings page #################
     - id: settings_page
       styles: main_content
       widgets:    
@@ -1919,3 +1967,214 @@ lvgl:
             bg_opa: TRANSP   
             pad_all: 0
             border_width: 5
+
+########## status page #################
+    - id: status_page
+      styles: main_content
+      widgets:
+        - obj:
+            border_width: 0
+            border_opa: 0%
+            layout: 
+              type: flex
+              flex_flow: column
+              flex_align_main: CENTER
+              flex_align_track: CENTER
+              flex_align_cross: CENTER
+            scrollbar_mode: AUTO
+            align: CENTER
+            width: 100%
+            height: 100%
+            bg_color: black
+            widgets:
+              - button:
+                  id: status_outside_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Outside Light: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.front_outside_light
+              - button:
+                  id: status_ceiling_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Ceiling Light: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - switch.toggle: ceiling_light_switch
+              - button:
+                  id: status_stairs_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Stairs Light: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.stairs_led
+              - button:
+                  id: status_hallway_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Hallway Ceiling: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.hallway_ceiling
+              - button:
+                  id: status_living_ceiling_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Livingroom Ceiling: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.livingroom_ceiling_led_colorflux_ls3
+              - button:
+                  id: status_stove_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Kitchen Stove: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.stove
+              - button:
+                  id: status_dining_light_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Dining Room Lights: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.dining_room_lights
+              - button:
+                  id: status_all_lights_button
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "All Lights: On"
+                        text_font: my_font40
+                        text_color: white
+                  on_click:
+                    - homeassistant.action:
+                        action: light.toggle
+                        data:
+                          entity_id: light.all_lights
+
+              - label:
+                  id: status_front_door_label
+                  hidden: true
+                  text: "Front Door: Open"
+                  text_font: my_font40
+                  text_color: white
+
+
+              - label:
+                  id: status_back_door_label
+                  hidden: true
+                  text: "Back Door: Open"
+                  text_font: my_font40
+                  text_color: white
+
+
+              - label:
+                  id: status_bathroom_window_label
+                  hidden: true
+                  text: "Bathroom Window: Open"
+                  text_font: my_font40
+                  text_color: white
+
+
+              - label:
+                  id: status_charles_window_label
+                  hidden: true
+                  text: "Charles' Window: Open"
+                  text_font: my_font40
+                  text_color: white
+
+
+              - label:
+                  id: status_mediaroom_window_label
+                  hidden: true
+                  text: "Media Room Window: Open"
+                  text_font: my_font40
+                  text_color: white
+
+
+              - label:
+                  id: status_stephs_window_label
+                  hidden: true
+                  text: "Steph's Window: Open"
+                  text_font: my_font40
+                  text_color: white
+      on_load:
+        - lvgl.widget.update:
+            id: status_outside_light_button
+            hidden: !lambda return !id(outside_light_state).state;
+        - lvgl.widget.update:
+            id: status_ceiling_light_button
+            hidden: !lambda return !id(ceiling_light_state).state;
+        - lvgl.widget.update:
+            id: status_stairs_light_button
+            hidden: !lambda return !id(stairs_light_state).state;
+        - lvgl.widget.update:
+            id: status_hallway_light_button
+            hidden: !lambda return !id(hallway_state).state;
+        - lvgl.widget.update:
+            id: status_living_ceiling_button
+            hidden: !lambda return !id(living_ceiling_state).state;
+        - lvgl.widget.update:
+            id: status_stove_light_button
+            hidden: !lambda return !id(stove_state).state;
+        - lvgl.widget.update:
+            id: status_dining_light_button
+            hidden: !lambda return !id(dining_light_state).state;
+        - lvgl.widget.update:
+            id: status_all_lights_button
+            hidden: !lambda return !id(all_lights_state).state;
+        - lvgl.widget.update:
+            id: status_front_door_label
+            hidden: !lambda return !id(front_door_state).state;
+        - lvgl.widget.update:
+            id: status_back_door_label
+            hidden: !lambda return !id(back_door_state).state;
+        - lvgl.widget.update:
+            id: status_bathroom_window_label
+            hidden: !lambda return !id(bathroom_window_state).state;
+        - lvgl.widget.update:
+            id: status_charles_window_label
+            hidden: !lambda return !id(charles_window_state).state;
+        - lvgl.widget.update:
+            id: status_mediaroom_window_label
+            hidden: !lambda return !id(mediaroom_window_state).state;
+        - lvgl.widget.update:
+            id: status_stephs_window_label
+            hidden: !lambda return !id(stephs_window_state).state;
