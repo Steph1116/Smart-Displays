@@ -1,8 +1,8 @@
 substitutions:
   font_glyphs: '&@!"''%()<>+=,-_.:°/$€£¥?0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzÀàÁáÂâÃãÄäĀāĂăÅåǺǻẠạĄąÆæǼǽĆćĈĉČčĊċÇçĎďĐđÐðÈèÉéÊêẼẽĚěËëĒēĔĕĖėẸẹĘęĜĝǦǧĞğĠġĢģĤĥĦħıÌìÍíÎîĨĩÏïĪīĬĭİỊịĮįȷĴĵĶķĸĹĺĽľĻļŁłĿŀŃńÑñŇňŅņƝɲŊŋŉÒòÓóÔôÕõÖöŌōŎŏŐőỌọǪǫØøǾǿŒœŔŕŘřŖŗŚśŜŝŠšŞşȘșẞßŤťŢţȚțŦŧÞþÙùÚúÛûŨũÜüŪūŬŭŮůŰűỤụŲųẀẁẂẃŴŵẄẅỲỳÝýŶŷỸỹŸÿȲȳŹźŽžŻżĲĳƏə'  
 esphome:
-  name: s3box-bedroom-display
-  friendly_name: S3Box Bedroom Display
+  name: bedroom-display
+  friendly_name: Bedroom Display
   on_boot:
     - lambda: id(back_light).turn_on().set_brightness(1.0).set_transition_length(1).perform(); 
 
@@ -95,7 +95,6 @@ touchscreen:
   i2c_id: bus_a
   address: 0x5D
   id: device_touchscreen
-  # update_interval: 16ms
   interrupt_pin:
     number: GPIO3
     ignore_strapping_warning: true
@@ -134,6 +133,7 @@ interval:
               id(countdown_control).turn_off();  // Auto turn off switch when countdown finishes
             }
           }
+
 globals:
   - id: current_pin
     type: std::string
@@ -159,19 +159,18 @@ switch:
           data:
             entity_id: light.entrance_ceiling
             brightness: '255'
+
   - platform: template
     id: home_page_flag
     optimistic: true
 
   - platform: template
     id: countdown_control
-    # name: count
     optimistic: true
     on_turn_off: 
       - lvgl.page.show: clock_page
-      - script.execute: backlight_off        
-    # on_turn_on:
-      # - lvgl.page.show: disarming_page
+      - script.execute: backlight_off
+
   - platform: template
     name: Antiburn
     id: switch_antiburn
@@ -194,6 +193,7 @@ switch:
           then:
             - lvgl.resume:
             - lvgl.widget.redraw:
+
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -210,7 +210,7 @@ text_sensor:
       entity_category: "diagnostic"
     mac_address:
       id: device_mac
-   
+
   - platform: homeassistant
     id: met_weather
     entity_id: weather.home
@@ -222,7 +222,6 @@ text_sensor:
               - display_weather_text
             text: !lambda return x;
          
-
   - platform: template
     id: pin_test
 
@@ -331,6 +330,7 @@ text_sensor:
                                         then: 
                                           - lvgl.page.show: disarming_page
                                           - switch.turn_on: countdown_control
+
   - platform: template
     id: countdown_timer
     # name: countdown  
@@ -340,7 +340,6 @@ text_sensor:
           text: !lambda return x;
 
 script:
-
   - id: time_update
     then:
       - lvgl.label.update:
@@ -560,7 +559,6 @@ script:
 
 
 sensor:  
-
   - platform: wifi_signal
     name: "WiFi db"
     id: wifi_signal_db
@@ -586,19 +584,23 @@ sensor:
             - out_temp_lvgl
           text:
             format: "%.0f°C"
-            args: [ 'x' ]                     
+            args: [ 'x' ]
+
 binary_sensor:
   - platform: gt911
     id: home_button
     index: 0
     on_press:
-      - if:
-          condition:
-            switch.is_on: home_page_flag
-          then: 
-            lvgl.page.show: clock_page
-          else:
-            lvgl.page.show: button_page
+      then:
+        - if:
+            condition:
+              switch.is_on: home_page_flag
+            then:
+              - lvgl.page.show: clock_page
+            else:
+              - lvgl.page.show: button_page
+        - light.turn_on: back_light
+            
   - platform: homeassistant
     id: outside_light_state
     entity_id: light.front_outside_light
@@ -667,7 +669,6 @@ binary_sensor:
               - lvgl.label.update:
                   id: stairs_light_lvgl
                   text_color: white
-
 
   - platform: homeassistant
     id: hallway_state
@@ -787,6 +788,7 @@ binary_sensor:
               - lvgl.label.update:
                   id: dining_room_lights_lvgl
                   text_color: white
+
   - platform: homeassistant
     id: all_lights_state
     entity_id: light.all_lights
@@ -859,6 +861,7 @@ binary_sensor:
                   id: door_status_lvgl
                   text_color: green 
                   text: "\U000F081B"
+
   - platform: homeassistant
     id: front_door_state
     entity_id: binary_sensor.frontdoor_door
@@ -926,7 +929,6 @@ binary_sensor:
             hidden: !lambda return !x;
                   
 font:
-
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font80
     size: 80
@@ -1012,7 +1014,6 @@ font:
       - "\U000F1254" # mdi-lights group
       - "\U000F05B1" # mdi-windows open
       - "\U000F05AE" # mdi-windows closed 
-
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
@@ -1217,7 +1218,7 @@ lvgl:
       border_width: 0
       radius: 0     
                             
-########## bottom bar ##########
+#################### bottom bar ####################
   top_layer:
       widgets:
         - obj:
@@ -1232,6 +1233,7 @@ lvgl:
                   text_font: icon_font_40
                   text_color: grey
                   text: "\U000F050F"
+
               - label:
                   id: out_temp_lvgl
                   align: LEFT_MID
@@ -1268,6 +1270,7 @@ lvgl:
                           lvgl.page.show: clock_page
                         else:
                           lvgl.page.show: button_page
+
               - label:
                   id: alarm_status_lvgl
                   align: BOTTOM_RIGHT
@@ -1284,7 +1287,7 @@ lvgl:
                       else:
                         lvgl.page.show: alarm_page
 
-######### buttons page ################
+#################### buttons page ####################
   pages:
     - id: button_page
       widgets:
@@ -1344,7 +1347,6 @@ lvgl:
                         align: CENTER
                   on_click:
                       switch.toggle: ceiling_light_switch
-
               - label:
                   grid_cell_column_pos: 1 
                   grid_cell_row_pos: 1 
@@ -1401,7 +1403,6 @@ lvgl:
                         action: light.toggle
                         data:
                           entity_id: light.hallway_ceiling
-
               - label:                        
                   grid_cell_column_pos: 3 
                   grid_cell_row_pos: 1 
@@ -1410,7 +1411,7 @@ lvgl:
                   text: "Hallway"
                   text_align: CENTER                                   
                  
-## second row ##
+#################### second row ####################
               - button:
                   checkable: true
                   id: button_5
@@ -1432,7 +1433,6 @@ lvgl:
                           service: light.toggle
                           data:
                             entity_id: light.livingroom_ceiling_led_colorflux_ls3
-                  
               - label:
                   grid_cell_column_pos: 0 # place the widget in
                   grid_cell_row_pos: 3 # the corresponding cell
@@ -1462,7 +1462,6 @@ lvgl:
                           service: light.toggle
                           data:
                             entity_id: light.stove
-                   
               - label:
                   grid_cell_column_pos: 1 # place the widget in
                   grid_cell_row_pos: 3 # the corresponding cell
@@ -1492,7 +1491,6 @@ lvgl:
                           service: light.toggle
                           data:
                             entity_id: light.dining_room_lights
-                         
               - label:
                   grid_cell_column_pos: 2
                   grid_cell_row_pos: 3 
@@ -1529,7 +1527,7 @@ lvgl:
       on_unload:
         - switch.turn_off: home_page_flag
 
-############ clock page ##############
+#################### clock page ####################
     - id: clock_page
       widgets:
         - obj: 
@@ -1596,7 +1594,7 @@ lvgl:
                   on_click:
                     lvgl.page.show: settings_page
 
-########## alarm page #################
+#################### alarm page ####################
     - id: alarm_page
       styles: main_content
       widgets:    
@@ -1688,7 +1686,7 @@ lvgl:
               - lambda: |-
                   id(current_pin) = ""; 
 
-########## disarm page #################
+#################### disarm page ####################
     - id: disarm_page
       styles: main_content
       widgets:
@@ -1780,7 +1778,7 @@ lvgl:
                       no_repeat: true
                       recolor: true
 
-########## triggered page #################
+#################### triggered page ####################
     - id: triggered_page
       widgets:
         - obj: 
@@ -1835,7 +1833,7 @@ lvgl:
                   on_press:
                     lvgl.page.show: disarm_page
 
-########## disarming page #################
+#################### disarming page ####################
     - id: disarming_page
       widgets:
         - obj: 
@@ -1910,7 +1908,7 @@ lvgl:
         - lvgl.widget.show: bottom_bar
         - script.execute: backlight_off
 
-########## settings page #################
+#################### settings page ####################
     - id: settings_page
       styles: main_content
       widgets:    
@@ -1968,7 +1966,7 @@ lvgl:
             pad_all: 0
             border_width: 5
 
-########## status page #################
+#################### status page ####################
     - id: status_page
       styles: main_content
       widgets:
