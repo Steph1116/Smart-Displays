@@ -1088,6 +1088,8 @@ font:
       - "\U000F05B1" # mdi-windows open
       - "\U000F05AE" # mdi-windows closed
       - "\U000F0020" # mdi-alarm clock
+      - "\U000F02FD" # mdi-information F08D6
+      - "\U000F08D6" # mdi-settings cogs
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
@@ -1202,8 +1204,8 @@ lvgl:
     button:
       bg_color: dk_blue
       bg_opa: COVER
-      border_color: 0x53334B
-      border_width: 4
+      border_color: black
+      border_width: 0
       text_color: white
       radius: 20
       shadow_color: black
@@ -1227,8 +1229,8 @@ lvgl:
         shadow_opa: 70%
 
     switch:
-      bg_color: 0xC0C0C0
-      bg_grad_color: 0xb0b0b0
+      bg_color: 0x4A4A4A
+      bg_grad_color: 0x696969
       bg_grad_dir: VER
       bg_opa: COVER
       checked:
@@ -1237,7 +1239,7 @@ lvgl:
         bg_grad_dir: VER
         bg_opa: COVER
       knob:
-        bg_color: 0xFFFFFF
+        bg_color: 0x808080
         bg_grad_color: 0xC0C0C0
         bg_grad_dir: VER
         bg_opa: COVER
