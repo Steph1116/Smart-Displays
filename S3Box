@@ -646,6 +646,9 @@ binary_sensor:
             id: automation_toggle
             state:
               checked: !lambda return x;
+        - lvgl.label.update:
+            id: heat_boost_lvgl
+
             
   - platform: homeassistant
     id: outside_light_state
@@ -1080,7 +1083,8 @@ font:
       - "\U000F081C" # mdi-door open
       - "\U000F1254" # mdi-lights group
       - "\U000F05B1" # mdi-windows open
-      - "\U000F05AE" # mdi-windows closed 
+      - "\U000F05AE" # mdi-windows closed
+      - "\U000F0020" # mdi-alarm clock
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
@@ -1105,6 +1109,8 @@ font:
     glyphs: *icon_glyphs 
      
 color:
+  - id: gray
+    hex: '999999'
   - id: green
     hex: '75D15F'
   - id: leaf_green
@@ -1191,26 +1197,26 @@ lvgl:
     - device_touchscreen
   theme:
     button:
-      bg_color: dk_blue
+      bg_color: black
       bg_opa: COVER
       border_color: 0x53334B
-      border_width: 4
+      border_width: 0
       text_color: white
       radius: 20
-      shadow_color: bg_grey
+      shadow_color: black
       shadow_ofs_x: 0
       shadow_ofs_y: 0
       shadow_spread: 3
       shadow_width: 5
       shadow_opa: 70%
       checked: 
-        bg_color: blue_drk
+        bg_color: black
         bg_opa: COVER
         border_color: black
-        border_width: 2
+        border_width: 0
         text_color: yellow
         radius: 20
-        shadow_color: yellow
+        shadow_color: black
         shadow_ofs_x: 0
         shadow_ofs_y: 0
         shadow_spread: 5
@@ -1248,7 +1254,7 @@ lvgl:
         bg_grad_dir: VER
         bg_opa: COVER
         border_color: 0x0077b3
-        border_width: 1
+        border_width: 0
         text_color: 0xFFFFFF
     image: 
       border_width: 0
@@ -1370,6 +1376,9 @@ lvgl:
 
             widgets:
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_1
                   grid_cell_column_pos: 0
@@ -1383,6 +1392,7 @@ lvgl:
                         id: outside_light_lvgl
                         text_font: icon_font_120
                         text: "\U000F024A"
+                        text_color: white
                         align: CENTER  
                   on_click:
                     - homeassistant.action:
@@ -1398,6 +1408,9 @@ lvgl:
                   text_align: CENTER                  
 
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_2
                   grid_cell_column_pos: 1
@@ -1411,6 +1424,7 @@ lvgl:
                         id: ceiling_light_lvgl
                         text_font: icon_font_120
                         text: "\U000F0769"
+                        text_color: white
                         align: CENTER
                   on_click:
                       switch.toggle: ceiling_light_switch
@@ -1423,6 +1437,9 @@ lvgl:
                   text_align: CENTER                  
 
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_3
                   grid_cell_column_pos: 2
@@ -1436,6 +1453,7 @@ lvgl:
                         id: stairs_light_lvgl
                         text_font: icon_font_120
                         text: "\U000F04CD" 
+                        text_color: white
                         align: CENTER
                   on_click:
                     - homeassistant.action:
@@ -1451,6 +1469,9 @@ lvgl:
                   text_align: CENTER                  
 
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_4
                   grid_cell_column_pos: 3
@@ -1464,6 +1485,7 @@ lvgl:
                         id: hallway_room_lvgl
                         text_font: icon_font_120
                         text: "\U000F0769"
+                        text_color: white
                         align: CENTER
                   on_click:
                     - homeassistant.action:
@@ -1480,6 +1502,9 @@ lvgl:
                  
 #################### second row ####################
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_5
                   grid_cell_column_pos: 0
@@ -1493,6 +1518,7 @@ lvgl:
                         id: livingroom_ceiling_lvgl
                         text_font: icon_font_120
                         text: "\U000F04B9"  
+                        text_color: white
                         align: CENTER
                   on_press:
                     then: 
@@ -1501,14 +1527,17 @@ lvgl:
                           data:
                             entity_id: light.livingroom_ceiling_led_colorflux_ls3
               - label:
-                  grid_cell_column_pos: 0 # place the widget in
-                  grid_cell_row_pos: 3 # the corresponding cell
+                  grid_cell_column_pos: 0
+                  grid_cell_row_pos: 3
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   text: "LivingRM"
                   text_align: CENTER                  
 
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_6
                   grid_cell_column_pos: 1
@@ -1522,6 +1551,7 @@ lvgl:
                         id: kitchen_stove_lvgl
                         text_font: icon_font_120
                         text: "\U000F04DE"
+                        text_color: white
                         align: CENTER
                   on_press:
                     then: 
@@ -1530,14 +1560,17 @@ lvgl:
                           data:
                             entity_id: light.stove
               - label:
-                  grid_cell_column_pos: 1 # place the widget in
-                  grid_cell_row_pos: 3 # the corresponding cell
+                  grid_cell_column_pos: 1
+                  grid_cell_row_pos: 3
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   text: "Kitchen"
                   text_align: CENTER                  
 
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_7
                   grid_cell_column_pos: 2
@@ -1551,6 +1584,7 @@ lvgl:
                         id: dining_room_lights_lvgl
                         text_font: icon_font_120
                         text: "\U000F1798"  
+                        text_color: white
                         align: CENTER
                   on_press:
                     then: 
@@ -1567,29 +1601,32 @@ lvgl:
                   text_align: CENTER                  
 
               - button:
+                  bg_color: black
+                  border_side: NONE
+                  border_width: 0
                   checkable: true
                   id: button_8
                   grid_cell_column_pos: 3
                   grid_cell_row_pos: 2
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
                   widgets:
                     - label:
                         id: heat_boost_lvgl
                         text_font: icon_font_120
-                        text: "\U000F07D0"
+                        text: "\U000F0020"
+                        text_color: white
                         align: CENTER
                   on_click:
-                    - lvgl.page.show: time_set_page
+                    - lvgl.page.show: time_set_page 
+
               - label:
                   grid_cell_column_pos: 3
                   grid_cell_row_pos: 3 
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  text: " "
-                  text_align: CENTER             
+                  text: "M.Alarm"
+                  text_align: CENTER           
 
       on_load:   
         - switch.turn_on: home_page_flag       
@@ -1833,7 +1870,6 @@ lvgl:
                     control:
                       no_repeat: true
               - buttons:
-                    
                   - text: "\uF55A"
                     key_code: "*"
                     control:
@@ -1841,7 +1877,7 @@ lvgl:
                   - text: 0
                     control:
                       no_repeat: true
-                  - text: "[#75D15F]"
+                  - text: '[#75D15F]'
                     key_code: "#"
                     control:
                       no_repeat: true
