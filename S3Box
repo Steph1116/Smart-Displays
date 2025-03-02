@@ -1200,10 +1200,10 @@ lvgl:
     - device_touchscreen
   theme:
     button:
-      bg_color: black
+      bg_color: dk_blue
       bg_opa: COVER
       border_color: 0x53334B
-      border_width: 0
+      border_width: 4
       text_color: white
       radius: 20
       shadow_color: black
@@ -1213,13 +1213,13 @@ lvgl:
       shadow_width: 5
       shadow_opa: 70%
       checked: 
-        bg_color: black
+        bg_color: blue_drk
         bg_opa: COVER
         border_color: black
-        border_width: 0
+        border_width: 2
         text_color: yellow
         radius: 20
-        shadow_color: black
+        shadow_color: yellow
         shadow_ofs_x: 0
         shadow_ofs_y: 0
         shadow_spread: 5
