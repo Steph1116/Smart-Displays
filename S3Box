@@ -1295,75 +1295,6 @@ lvgl:
       align: TOP_MID
       border_width: 0
       radius: 0     
-                            
-#################### bottom bar ####################
-  top_layer:
-      widgets:
-        - obj:
-            id: bottom_bar
-            styles: bottom_content_bar
-            text_color: grey
-            scrollbar_mode: "OFF"
-            widgets:            
-              - label:
-                  id: out_temp_lvgl_icon
-                  align: LEFT_MID
-                  text_font: icon_font_40
-                  text_color: grey
-                  text: "\U000F050F"
-
-              - label:
-                  id: out_temp_lvgl
-                  align: LEFT_MID
-                  translate_x: 40
-                  translate_y: 5
-                  text_color: grey
-                  text: " "
-
-              - label:
-                  id: display_weather
-                  align: CENTER
-                  translate_x: -100
-                  text_font: icon_font_80
-                  text: " " 
-
-              - label:
-                  id: display_weather_text
-                  align: CENTER
-                  translate_x: 60
-                  text_font: montserrat_20
-                  text: " " 
-
-              - label:
-                  id: home_lvgl
-                  align: BOTTOM_RIGHT
-                  text_color: grey
-                  text_font: icon_font_60
-                  text: "\U000F02DC"
-                  on_click:
-                    - if:
-                        condition:
-                          switch.is_on: home_page_flag
-                        then: 
-                          lvgl.page.show: clock_page
-                        else:
-                          lvgl.page.show: button_page
-
-              - label:
-                  id: alarm_status_lvgl
-                  align: BOTTOM_RIGHT
-                  translate_x: -75
-                  text_font: icon_font_60
-                  text_color: red
-                  text: "\U000F099E"
-                  on_click:
-                    if:
-                      condition:
-                        - lambda: return (id(alarm_status).state == "arming" || id(alarm_status).state == "armed_away" || id(alarm_status).state == "armed_home" || id(alarm_status).state == "armed_night");
-                      then:
-                        lvgl.page.show: disarm_page
-                      else:
-                        lvgl.page.show: alarm_page
 
 #################### buttons page ####################
   pages:
@@ -1505,7 +1436,7 @@ lvgl:
                   text: "Hallway"
                   text_align: CENTER                                   
                  
-#################### second row ####################
+    ########## second row ##########
               - button:
                   bg_color: black
                   border_side: NONE
@@ -1631,7 +1562,35 @@ lvgl:
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
                   text: "M.Alarm"
-                  text_align: CENTER           
+                  text_align: CENTER  
+        - obj: 
+            styles: bottom_content_bar
+            text_color: grey
+            scrollbar_mode: "OFF"
+            widgets:
+              - label:
+                  align: BOTTOM_RIGHT
+                  translate_x: -100
+                  text_font: icon_font_60
+                  text_color: grey
+                  text: "\U000F02FD"
+                  on_click:
+                    - lvgl.page.show: status_page
+              - label:
+                  align: BOTTOM_RIGHT
+                  translate_x: -50
+                  text_font: icon_font_60
+                  text_color: grey
+                  text: "\U000F0020"
+                  on_click:
+                    - lvgl.page.show: time_set_page
+              - label:
+                  align: BOTTOM_RIGHT
+                  text_font: icon_font_60
+                  text_color: grey
+                  text: "\U000F08D6" 
+                  on_click:
+                    - lvgl.page.show: settings_page         
 
       on_load:   
         - switch.turn_on: home_page_flag       
@@ -1704,6 +1663,65 @@ lvgl:
                   text: " "
                   on_click:
                     lvgl.page.show: settings_page
+
+        - obj: 
+            styles: bottom_content_bar
+            text_color: grey
+            scrollbar_mode: "OFF"
+            widgets:            
+              - label:
+                  id: out_temp_lvgl_icon
+                  align: LEFT_MID
+                  text_font: icon_font_40
+                  text_color: grey
+                  text: "\U000F050F"
+
+              - label:
+                  id: out_temp_lvgl
+                  align: LEFT_MID
+                  translate_x: 40
+                  translate_y: 5
+                  text_color: grey
+                  text: " "
+
+              - label:
+                  id: display_weather
+                  align: CENTER
+                  translate_x: -100
+                  text_font: icon_font_80
+                  text: " " 
+
+              - label:
+                  id: display_weather_text
+                  align: CENTER
+                  translate_x: 60
+                  text_font: montserrat_20
+                  text: " " 
+
+              - label:
+                  id: home_lvgl
+                  align: BOTTOM_RIGHT
+                  text_color: grey
+                  text_font: icon_font_60
+                  text: "\U000F02DC"
+                  on_click:
+                    - lvgl.page.show: button_page
+
+              - label:
+                  id: alarm_status_lvgl
+                  align: BOTTOM_RIGHT
+                  translate_x: -75
+                  text_font: icon_font_60
+                  text_color: red
+                  text: "\U000F099E"
+                  on_click:
+                    if:
+                      condition:
+                        - lambda: return (id(alarm_status).state == "arming" || id(alarm_status).state == "armed_away" || id(alarm_status).state == "armed_home" || id(alarm_status).state == "armed_night");
+                      then:
+                        lvgl.page.show: disarm_page
+                      else:
+                        lvgl.page.show: alarm_page
 
 #################### alarm page ####################
     - id: alarm_page
@@ -2011,11 +2029,9 @@ lvgl:
                   on_press:
                     lvgl.page.show: disarm_page
       on_load:
-        - lvgl.widget.hide: bottom_bar  
         - script.stop: backlight_off
         - light.turn_on: back_light
       on_unload:
-        - lvgl.widget.show: bottom_bar
         - script.execute: backlight_off
 
 #################### settings page ####################
@@ -2597,7 +2613,6 @@ lvgl:
                           - lvgl.page.show: clock_page
       
       on_load:
-        - lvgl.widget.hide: bottom_bar
         - lambda: |-
             // Get time from input_datetime.time entity
             std::string time_str = id(input_datetime_time).state;
@@ -2637,5 +2652,3 @@ lvgl:
                 id(time_set_minute),
                 id(time_set_am_pm).c_str()
               );
-      on_unload:
-        - lvgl.widget.show: bottom_bar
