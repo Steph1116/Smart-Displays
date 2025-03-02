@@ -640,6 +640,12 @@ binary_sensor:
   - platform: homeassistant
     id: morning_backup_automation
     entity_id: automation.morning_backup
+    on_state:
+      then:
+        - lvgl.widget.update:
+            id: automation_toggle
+            state:
+              checked: !lambda return x;
             
   - platform: homeassistant
     id: outside_light_state
@@ -2570,6 +2576,10 @@ lvgl:
             id(time_set_hour) = (hour_24 % 12 == 0) ? 12 : (hour_24 % 12);
             id(time_set_am_pm) = (hour_24 < 12) ? "AM" : "PM";
             id(time_set_minute) = minute;
+        - lvgl.widget.update:
+            id: automation_toggle
+            state:
+              checked: !lambda return id(morning_backup_automation).state;
         - lvgl.label.update:
             id: hour_label
             text: !lambda |-
