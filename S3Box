@@ -4,7 +4,7 @@ esphome:
   name: bedroom-display
   friendly_name: Bedroom Display
   on_boot:
-    - delay: 300ms
+    - delay: 300ms  # Initialization delay
     - lambda: id(back_light).turn_on().set_brightness(1.0).set_transition_length(1).perform();
 
 esp32:
@@ -94,14 +94,14 @@ display:
 touchscreen:
   platform: gt911
   i2c_id: bus_a
-  address: 0x14
+  address: 0x5D  # Use 0x5D if not working
   id: device_touchscreen
   interrupt_pin:
     number: GPIO3
     inverted: true
     ignore_strapping_warning: true
   reset_pin:
-    number: GPIO21
+    number: GPIO21  # Direct GPIO specification
     inverted: true
   update_interval: 50ms
 
@@ -344,7 +344,8 @@ text_sensor:
                                           - switch.turn_on: countdown_control
 
   - platform: template
-    id: countdown_timer  
+    id: countdown_timer
+    # name: countdown  
     on_value:
       - lvgl.label.update: 
           id: entrance_delay_lvgl
@@ -1007,7 +1008,8 @@ font:
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font40
-    size: 40   
+    size: 40
+    # bpp: 4     
     glyphs:
       '${font_glyphs}'
    
@@ -1198,10 +1200,10 @@ lvgl:
     - device_touchscreen
   theme:
     button:
-      bg_color: dk_blue
+      bg_color: black
       bg_opa: COVER
       border_color: 0x53334B
-      border_width: 4
+      border_width: 0
       text_color: white
       radius: 20
       shadow_color: black
@@ -1211,13 +1213,13 @@ lvgl:
       shadow_width: 5
       shadow_opa: 70%
       checked: 
-        bg_color: blue_drk
+        bg_color: black
         bg_opa: COVER
         border_color: black
-        border_width: 2
+        border_width: 0
         text_color: yellow
         radius: 20
-        shadow_color: yellow
+        shadow_color: black
         shadow_ofs_x: 0
         shadow_ofs_y: 0
         shadow_spread: 5
@@ -1658,6 +1660,7 @@ lvgl:
                   align: CENTER
                   text: " "
                   translate_y: 120
+                  # translate_x: 100
                   text_font: montserrat_24
 
               - label:
@@ -1692,6 +1695,7 @@ lvgl:
               - label:
                   id: settings_page_lvgl
                   align: TOP_RIGHT
+                  # translate_x: 160
                   border_width: 5
                   text_font: icon_font_60
                   text_color: black
@@ -2329,7 +2333,7 @@ lvgl:
                               data:
                                 entity_id: automation.morning_backup
 
-    ########## Hour Controls ##########
+              # Hour Controls
               - obj:
                   width: 100%
                   height: 25%
@@ -2446,7 +2450,7 @@ lvgl:
                                   id(time_set_am_pm).c_str()
                                 );
 
-    ########## Minute Controls ##########
+              # Minute Controls
               - obj:
                   width: 100%
                   height: 25%
@@ -2533,7 +2537,7 @@ lvgl:
                                   id(time_set_am_pm).c_str()
                                 );
 
-    ########## Set/Cancel Buttons ##########
+              # Set/Cancel Buttons
               - obj:
                   width: 100%
                   height: 30%
