@@ -347,6 +347,29 @@ text_sensor:
       - lvgl.label.update: 
           id: entrance_delay_lvgl
           text: !lambda return x;
+  - platform: homeassistant
+    name: "Time Input"
+    id: input_datetime_time
+    entity_id: input_datetime.time
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGD("TIME", "Received new time: %s", x.c_str());
+            // Update global variables
+            std::string time_str = x;
+            int hour_24 = 8;
+            int minute = 30;
+            if (time_str.length() >= 5) {
+              size_t colon_pos = time_str.find(":");
+              if (colon_pos != std::string::npos) {
+                hour_24 = atoi(time_str.substr(0, colon_pos).c_str());
+                minute = atoi(time_str.substr(colon_pos+1, 2).c_str());
+              }
+            }
+            id(time_set_hour) = (hour_24 % 12 == 0) ? 12 : (hour_24 % 12);
+            id(time_set_am_pm) = (hour_24 < 12) ? "AM" : "PM";
+            id(time_set_minute) = minute;
 
 script:
   - id: time_update
@@ -594,6 +617,10 @@ sensor:
           text:
             format: "%.0f°C"
             args: [ 'x' ]
+  - platform: homeassistant
+    id: input_datetime_time_text
+    entity_id: input_datetime.time
+    internal: true
 
 binary_sensor:
   - platform: gt911
@@ -609,6 +636,10 @@ binary_sensor:
             else:
               - lvgl.page.show: button_page
         - light.turn_on: back_light
+
+  - platform: homeassistant
+    id: morning_backup_automation
+    entity_id: automation.morning_backup
             
   - platform: homeassistant
     id: outside_light_state
@@ -938,6 +969,27 @@ binary_sensor:
             hidden: !lambda return !x;
                   
 font:
+  - file: "gfonts://Montserrat"
+    id: montserrat_12
+    size: 12
+  - file: "gfonts://Montserrat"
+    id: montserrat_16
+    size: 16
+  - file: "gfonts://Montserrat"
+    id: montserrat_18
+    size: 18
+  - file: "gfonts://Montserrat"
+    id: montserrat_20
+    size: 20
+  - file: "gfonts://Montserrat"
+    id: montserrat_24
+    size: 24
+  - file: "gfonts://Montserrat"
+    id: montserrat_40
+    size: 40
+  - file: "gfonts://Montserrat"
+    id: montserrat_48
+    size: 48
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font80
     size: 80
@@ -2188,62 +2240,121 @@ lvgl:
             id: status_stephs_window_label
             hidden: !lambda return !id(stephs_window_state).state;
 
-#################### Time Set Page ####################
+################## Time Set Page ####################
     - id: time_set_page
       styles: main_content
-      widgets:
-        - obj:
+      widgets: 
+        - obj: 
             width: 100%
             height: 100%
-            bg_color: black  # Added background color
-            layout:
+            bg_color: black
+            scrollable: True
+            layout: 
               type: flex
               flex_flow: column
-              flex_align_main: CENTER
+              flex_align_main: START
               flex_align_cross: CENTER
-              pad_row: 4 
-            widgets:
-              - label:
-                  id: time_display_label
-                  text: "8:30 PM"
-                  text_font: montserrat_18
-                  text_color: white
-                  height: 15%
+            widgets: 
+              - obj: 
+                  width: 100%
+                  height: 20%
+                  bg_color: black
+                  border_width: 0
+                  layout: 
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: SPACE_AROUND
+                    flex_align_cross: CENTER
+                  scrollable: False
+                  widgets: 
+                    - label: 
+                        id: time_display_label
+                        text: 8:30 PM
+                        text_font: montserrat_18
+                        text_color: white
+                        width: 60%
+                        align: CENTER
+                        text_align: CENTER
+                    
+                    - switch:
+                        id: automation_toggle
+                        width: 25%
+                        height: 30px
+                        align: CENTER
+                        scrollable: False
+                        on_click:
+                          - homeassistant.service:
+                              service: automation.toggle
+                              data:
+                                entity_id: automation.morning_backup
 
               # Hour Controls
               - obj:
                   width: 100%
                   height: 25%
                   bg_color: black
+                  border_width: 0
                   layout:
                     type: flex
                     flex_flow: row
-                    flex_align_main: CENTER  # Center items vertically
+                    flex_align_main: SPACE_EVENLY
                     flex_align_cross: CENTER
-                    pad_column: 10  # Center items horizontally
-                  border_width: 0
+                  scrollable: False
                   widgets:
                     - label:
                         id: hour_label
                         text: "Hour: 8"
                         text_font: montserrat_16
                         text_color: white
-                        pad_right: 15
+                        align: CENTER
+                        text_align: CENTER
 
                     - button:
-                        width: 40px
-                        height: 40px
+                        width: 35px
+                        height: 35px
                         bg_color: blue_drk
-                        border_width: 0
                         align: CENTER
+                        scrollable: False
+                        widgets:
+                          - label:
+                              text: "-"
+                              text_font: montserrat_16
+                              text_color: white
+                              align: CENTER
+                              text_align: CENTER
+                        on_click:
+                          - lambda: |-
+                              if (id(time_set_hour) == 1) {
+                                id(time_set_hour) = 12;
+                              } else {
+                                id(time_set_hour)--;
+                              }
+                          - lvgl.label.update:
+                              id: hour_label
+                              text: !lambda |-
+                                return "Hour: " + str_sprintf("%d", id(time_set_hour));
+                          - lvgl.label.update:
+                              id: time_display_label
+                              text: !lambda |-
+                                return str_sprintf("%d:%02d %s",
+                                  id(time_set_hour),
+                                  id(time_set_minute),
+                                  id(time_set_am_pm).c_str()
+                                );
+
+                    - button:
+                        width: 35px
+                        height: 35px
+                        bg_color: blue_drk
+                        align: CENTER
+                        scrollable: False
                         widgets:
                           - label:
                               text: "+"
                               text_font: montserrat_16
                               text_color: white
                               align: CENTER
-                              width: 100%
-                              height: 100%
+                              text_align: CENTER
                         on_click:
                           - lambda: |-
                               if (id(time_set_hour) == 12) {
@@ -2265,31 +2376,26 @@ lvgl:
                                 );
 
                     - button:
-                        width: 40px
-                        height: 40px
+                        width: 60px
+                        height: 35px
                         bg_color: blue_drk
-                        border_width: 0
                         align: CENTER
-                        pad_left: 10  # Space between buttons
+                        scrollable: False
                         widgets:
                           - label:
-                              text: "-"
+                              id: am_pm_label
+                              text: "PM"
                               text_font: montserrat_16
                               text_color: white
                               align: CENTER
-                              width: 100%
-                              height: 100%
+                              text_align: CENTER
                         on_click:
                           - lambda: |-
-                              if (id(time_set_hour) == 1) {
-                                id(time_set_hour) = 12;
-                              } else {
-                                id(time_set_hour)--;
-                              }
+                              id(time_set_am_pm) = (id(time_set_am_pm) == "PM") ? "AM" : "PM";
                           - lvgl.label.update:
-                              id: hour_label
+                              id: am_pm_label
                               text: !lambda |-
-                                return "Hour: " + str_sprintf("%d", id(time_set_hour));
+                                return id(time_set_am_pm);
                           - lvgl.label.update:
                               id: time_display_label
                               text: !lambda |-
@@ -2304,70 +2410,35 @@ lvgl:
                   width: 100%
                   height: 25%
                   bg_color: black
+                  border_width: 0
                   layout:
                     type: flex
                     flex_flow: row
-                    flex_align_main: CENTER
+                    flex_align_main: SPACE_EVENLY
                     flex_align_cross: CENTER
-                    pad_column: 10
-                  border_width: 0
+                  scrollable: False
                   widgets:
                     - label:
                         id: minute_label
                         text: "Minute: 30"
                         text_font: montserrat_16
                         text_color: white
-                        pad_right: 15
+                        align: CENTER
+                        text_align: CENTER
 
                     - button:
-                        width: 40px
-                        height: 40px
+                        width: 35px
+                        height: 35px
                         bg_color: blue_drk
-                        border_width: 0
                         align: CENTER
-                        widgets:
-                          - label:
-                              text: "+"
-                              text_font: montserrat_16
-                              text_color: white
-                              align: CENTER
-                              width: 100%
-                              height: 100%
-                        on_click:
-                          - lambda: |-
-                              if (id(time_set_minute) == 59) {
-                                id(time_set_minute) = 0;
-                              } else {
-                                id(time_set_minute)++;
-                              }
-                          - lvgl.label.update:
-                              id: minute_label
-                              text: !lambda |-
-                                return "Minute: " + str_sprintf("%02d", id(time_set_minute));
-                          - lvgl.label.update:
-                              id: time_display_label
-                              text: !lambda |-
-                                return str_sprintf("%d:%02d %s",
-                                  id(time_set_hour),
-                                  id(time_set_minute),
-                                  id(time_set_am_pm).c_str()
-                                );
-
-                    - button:
-                        width: 40px
-                        height: 40px
-                        bg_color: blue_drk
-                        border_width: 0
-                        align: CENTER
-                        pad_left: 10
+                        scrollable: False
                         widgets:
                           - label:
                               text: "-"
                               text_font: montserrat_16
                               text_color: white
                               align: CENTER
-                              width: 100%
-                              height: 100%
+                              text_align: CENTER
                         on_click:
                           - lambda: |-
                               if (id(time_set_minute) == 0) {
@@ -2388,72 +2459,117 @@ lvgl:
                                   id(time_set_am_pm).c_str()
                                 );
 
-              # AM/PM Toggle
-              - button:
-                  id: am_pm_button
-                  width: 20%
-                  height: 15%
-                  widgets:
-                    - label:
-                        id: am_pm_label
-                        text: "PM"
-                        text_font: montserrat_16
-                        text_color: white
-                  on_click:
-                    - lambda: |-
-                        id(time_set_am_pm) = (id(time_set_am_pm) == "PM") ? "AM" : "PM";
-                    - lvgl.label.update:
-                        id: am_pm_label
-                        text: !lambda |-
-                          return id(time_set_am_pm);
+                    - button:
+                        width: 35px
+                        height: 35px
+                        bg_color: blue_drk
+                        align: CENTER
+                        scrollable: False
+                        widgets:
+                          - label:
+                              text: "+"
+                              text_font: montserrat_16
+                              text_color: white
+                              align: CENTER
+                              text_align: CENTER
+                        on_click:
+                          - lambda: |-
+                              if (id(time_set_minute) == 59) {
+                                id(time_set_minute) = 0;
+                              } else {
+                                id(time_set_minute)++;
+                              }
+                          - lvgl.label.update:
+                              id: minute_label
+                              text: !lambda |-
+                                return "Minute: " + str_sprintf("%02d", id(time_set_minute));
+                          - lvgl.label.update:
+                              id: time_display_label
+                              text: !lambda |-
+                                return str_sprintf("%d:%02d %s",
+                                  id(time_set_hour),
+                                  id(time_set_minute),
+                                  id(time_set_am_pm).c_str()
+                                );
 
               # Set/Cancel Buttons
               - obj:
-                  width: 80%
-                  height: 15%
+                  width: 100%
+                  height: 30%
+                  bg_color: black
+                  border_width: 0
                   layout:
                     type: flex
                     flex_flow: row
-                    flex_align_main: SPACE_BETWEEN
+                    flex_align_main: SPACE_EVENLY
+                    flex_align_cross: CENTER
+                  scrollable: False
                   widgets:
                     - button:
                         width: 45%
-                        height: 30px
+                        height: 35px
+                        align: CENTER
+                        scrollable: False
                         widgets:
                           - label:
                               text: "Set"
                               text_font: montserrat_16
-                              text_color: white
+                              align: CENTER
+                              text_align: CENTER
                         on_click:
                           - homeassistant.service:
-                              service: input_select.select_option
+                              service: input_datetime.set_datetime
                               data:
-                                entity_id: input_select.time
-                                option: !lambda |-
-                                  return str_sprintf(
-                                    "%d:%02d %s",
-                                    id(time_set_hour),
-                                    id(time_set_minute),
-                                    id(time_set_am_pm).c_str()
-                                  );
+                                entity_id: input_datetime.time
+                                time: !lambda |-
+                                  int hour_24 = id(time_set_hour);
+                                  if (id(time_set_am_pm) == "PM") {
+                                    if (hour_24 != 12) {
+                                      hour_24 += 12;
+                                    }
+                                  } else {
+                                    if (hour_24 == 12) {
+                                      hour_24 = 0;
+                                    }
+                                  }
+                                  return str_sprintf("%02d:%02d:00", hour_24, id(time_set_minute));
                           - lvgl.page.show: clock_page
 
                     - button:
                         width: 45%
-                        height: 30px
+                        height: 35px
+                        align: CENTER
+                        scrollable: False
                         widgets:
                           - label:
                               text: "Cancel"
+                              text_font: montserrat_16
+                              align: CENTER
+                              text_align: CENTER
                         on_click:
                           - lvgl.page.show: clock_page
-
+      
       on_load:
+        - lvgl.widget.hide: bottom_bar
         - lambda: |-
-            auto now = id(sntp_time).now();
-            int hour = now.hour;
-            id(time_set_hour) = (hour % 12 == 0) ? 12 : hour % 12;
-            id(time_set_am_pm) = (hour < 12) ? "AM" : "PM";
-            id(time_set_minute) = now.minute;
+            // Get time from input_datetime.time entity
+            std::string time_str = id(input_datetime_time).state;
+            int hour_24 = 8;  // Default values if parsing fails
+            int minute = 30;
+            
+            // Parse HH:MM:SS or HH:MM format
+            if (time_str.length() >= 5) {
+              size_t colon_pos = time_str.find(":");
+              if (colon_pos != std::string::npos) {
+                hour_24 = atoi(time_str.substr(0, colon_pos).c_str());
+                minute = atoi(time_str.substr(colon_pos+1, 2).c_str());
+              }
+            }
+            
+            // Convert to 12-hour format
+            id(time_set_hour) = (hour_24 % 12 == 0) ? 12 : (hour_24 % 12);
+            id(time_set_am_pm) = (hour_24 < 12) ? "AM" : "PM";
+            id(time_set_minute) = minute;
         - lvgl.label.update:
             id: hour_label
             text: !lambda |-
@@ -2470,3 +2586,5 @@ lvgl:
                 id(time_set_minute),
                 id(time_set_am_pm).c_str()
               );
+      on_unload:
+        - lvgl.widget.show: bottom_bar
