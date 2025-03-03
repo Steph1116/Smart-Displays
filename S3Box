@@ -6,6 +6,8 @@ esphome:
   on_boot:
     - delay: 300ms  # Initialization delay
     - lambda: id(back_light).turn_on().set_brightness(1.0).set_transition_length(1).perform();
+    - delay: 15s
+    - lvgl.widget.hide: boot_screen
 
 esp32:
   board: esp32s3box
@@ -22,6 +24,18 @@ psram:
   speed: 80MHz
   
 api:
+  on_client_connected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.show: lbl_hastatus
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.hide: lbl_hastatus
 
 logger:
   hardware_uart: USB_SERIAL_JTAG
@@ -150,6 +164,16 @@ globals:
   - id: time_set_am_pm
     type: std::string
     initial_value: '"PM"'
+  - id: current_page
+    type: std::string
+    initial_value: '"clock_page"'
+
+image:
+  - file: "HA1.png"
+    id: boot_logo
+    resize: 200x200
+    type: RGB565
+    transparency: alpha_channel
 
 button:
   - platform: restart
@@ -620,10 +644,45 @@ sensor:
           text:
             format: "%.0f°C"
             args: [ 'x' ]
+
   - platform: homeassistant
     id: input_datetime_time_text
     entity_id: input_datetime.time
     internal: true
+
+# Battery voltage sensor
+  - platform: adc
+    pin: GPIO10
+    id: battery_voltage
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+    device_class: voltage
+    entity_category: diagnostic
+    update_interval: 30s
+    attenuation: auto
+    filters:
+      - multiply: 4.11  # Voltage divider adjustment
+
+  # Battery percentage
+  - platform: template
+    id: battery_percent
+    name: "Battery Level"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: battery
+    entity_category: diagnostic
+    lambda: |-
+      float voltage = id(battery_voltage).state;
+      // Li-ion battery voltage range (2.7V-4.2V)
+      return (voltage - 2.7) / (4.2 - 2.7) * 100.0;
+    filters:
+      - clamp:
+          min_value: 0
+          max_value: 100
+    on_value:
+      - lvgl.label.update:
+          id: battery_label
+          text: !lambda return str_sprintf("%.0f%%", x);
 
 binary_sensor:
   - platform: gt911
@@ -633,12 +692,48 @@ binary_sensor:
       then:
         - if:
             condition:
-              switch.is_on: home_page_flag
+              light.is_off: back_light
+            then:
+              - light.turn_on: back_light
+              - lvgl.page.show: clock_page
+              - lambda: |-
+                  id(current_page) = "clock_page";
+            else:
+              - if:
+                  condition:
+                    lambda: |-
+                      return (id(current_page) == "status_page" || 
+                             id(current_page) == "time_set_page" || 
+                             id(current_page) == "settings_page" ||
+                             id(current_page) == "button_page");
+                  then:
+                    - lvgl.page.show: clock_page
+              - if:
+                  condition:
+                    lambda: |-
+                      return (id(current_page) == "clock_page");
+                  then:
+                    - lvgl.page.show: button_page
+
+  - platform: gpio
+    id: top_left_button
+    name: "Backlight Toggle"
+    internal: true
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: true
+      ignore_strapping_warning: true
+    on_press:
+      then:
+        - light.toggle: back_light
+        - if:
+            condition:
+              light.is_on: back_light
             then:
               - lvgl.page.show: clock_page
-            else:
-              - lvgl.page.show: button_page
-        - light.turn_on: back_light
+              - lambda: |-
+                  id(current_page) = "clock_page";
 
   - platform: homeassistant
     id: morning_backup_automation
@@ -750,27 +845,18 @@ binary_sensor:
     entity_id: binary_sensor.hallway_motion
     internal: true
     publish_initial_state: true
-    on_state:
-      then:
-        script.execute: backlight_off
 
   - platform: homeassistant
     id: stairs_motion
     entity_id: binary_sensor.top_stairs_motion
     internal: true
     publish_initial_state: true
-    on_state:
-      then:
-        script.execute: backlight_off
 
   - platform: homeassistant
     id: front_door
     entity_id: binary_sensor.frontdoor_door
     internal: true
     publish_initial_state: true
-    on_state:
-      then:
-        script.execute: backlight_off
 
   - platform: homeassistant
     id: living_ceiling_state
@@ -1090,6 +1176,8 @@ font:
       - "\U000F0020" # mdi-alarm clock
       - "\U000F02FD" # mdi-information F08D6
       - "\U000F08D6" # mdi-settings cogs
+      - "\U000F16BD" # mdi-wifi check
+      
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
@@ -1200,6 +1288,37 @@ lvgl:
     - device_display
   touchscreens:
     - device_touchscreen
+  top_layer:
+    widgets:
+      - obj:
+          id: boot_screen
+          x: 0
+          y: 0
+          width: 100%
+          height: 100%
+          bg_color: 0xffffff
+          bg_opa: COVER
+          radius: 0
+          pad_all: 0
+          border_width: 0
+          widgets:
+            - image:
+                align: CENTER
+                src: boot_logo
+                y: -40
+            - spinner:
+                align: CENTER
+                y: 95
+                height: 50
+                width: 50
+                spin_time: 1s
+                arc_length: 60deg
+                arc_width: 8
+                indicator:
+                  arc_color: 0x18bcf2
+                  arc_width: 8
+          on_press:
+            - lvgl.widget.hide: boot_screen
   theme:
     button:
       bg_color: dk_blue
@@ -1281,6 +1400,17 @@ lvgl:
       text_align: left
       text_font: montserrat_10
       align: BOTTOM_LEFT
+      width: 100%
+      height: 20%    
+      border_width: 0
+      radius: 0
+
+    - id: top_content_bar
+      bg_color: bg_charcoal
+      text_color: amber
+      text_align: left
+      text_font: montserrat_10
+      align: TOP_LEFT
       width: 100%
       height: 20%    
       border_width: 0
@@ -1591,8 +1721,8 @@ lvgl:
                   text: "\U000F08D6" 
                   on_click:
                     - lvgl.page.show: settings_page         
-
       on_load:   
+        - lambda: id(current_page) = "button_page";
         - switch.turn_on: home_page_flag       
       on_unload:
         - switch.turn_off: home_page_flag
@@ -1722,6 +1852,8 @@ lvgl:
                         lvgl.page.show: disarm_page
                       else:
                         lvgl.page.show: alarm_page
+      on_load:
+        - lambda: id(current_page) = "clock_page";
 
 #################### alarm page ####################
     - id: alarm_page
@@ -2036,61 +2168,29 @@ lvgl:
 
 #################### settings page ####################
     - id: settings_page
-      styles: main_content
-      widgets:    
+      widgets:
         - obj:
-            width: 300
-            height: 60
-            align: TOP_MID
-            scrollbar_mode: "OFF"         
-            bg_opa: TRANSP   
-            pad_all: 0
+            styles: top_content_bar
+            text_color: grey
+            scrollbar_mode: "OFF"
             widgets:
               - label:
-                  align: CENTER
-                  text_align: left
-                  text_font: montserrat_20
-                  text: "Settings"
+                  id: battery_label
+                  align: TOP_LEFT
+                  text_font: montserrat_18
                   text_color: white
-                  width: 80%
-                  height: 100%
-                  bg_opa: COVER
-                  bg_color: bg_charcoal
-                  pad_top: 5
+                  text: "0%"
               - label:
-                  id: wifi_set_lvgl
-                  align: CENTER
-                  text_align: right
+                  id: lbl_hastatus
+                  align: TOP_RIGHT
+                  text: "\U000F16BD"
+                  hidden: true
                   text_font: icon_font_40
-                  text: "\U000F08D6"
-                  text_color: white
-                  width: 20%
-                  height: 100%
-                  translate_x: 90
-                  bg_opa: COVER
-                  bg_color: bg_charcoal
-                  pad_top: 5
+                 # translate_x: 10
 
-        - obj:
-            width: 350
-            height: 310
-            align: TOP_LEFT
-            translate_x: 40
-            translate_y: 70
-            scrollbar_mode: "OFF"         
-            bg_opa: TRANSP   
-            pad_all: 0
-            border_width: 5
-        - obj:
-            width: 350
-            height: 310
-            align: TOP_RIGHT
-            translate_x: -40
-            translate_y: 70
-            scrollbar_mode: "OFF"         
-            bg_opa: TRANSP   
-            pad_all: 0
-            border_width: 5
+      styles: main_content
+      on_load:
+        - lambda: id(current_page) = "settings_page";
 
 #################### status page ####################
     - id: status_page
@@ -2302,6 +2402,8 @@ lvgl:
         - lvgl.widget.update:
             id: status_stephs_window_label
             hidden: !lambda return !id(stephs_window_state).state;
+        - lambda: id(current_page) = "status_page";
+
 
 ################## Time Set Page ####################
     - id: time_set_page
@@ -2652,3 +2754,4 @@ lvgl:
                 id(time_set_minute),
                 id(time_set_am_pm).c_str()
               );
+        - lambda: id(current_page) = "time_set_page";
