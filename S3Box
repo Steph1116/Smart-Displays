@@ -7,6 +7,7 @@ esphome:
     - lambda: id(back_light).turn_on().set_brightness(1.0).set_transition_length(1).perform();
     - delay: 15s
     - lvgl.widget.hide: boot_screen
+    - lvgl.page.show: clock_page
 
 esp32:
   board: esp32s3box
@@ -89,6 +90,7 @@ i2c:
     scl_pullup_enabled: true
     frequency: 50kHz
     id: bus_b
+    
 
 spi:
   clk_pin: 7
@@ -121,6 +123,15 @@ touchscreen:
     number: GPIO21
     inverted: true
   update_interval: 50ms
+  on_release:
+    then:
+      - lambda: |-
+          id(idle_timer) = 0;
+          if (id(back_light).current_values.is_on()) {
+            id(back_light).turn_on().set_brightness(0.5).perform();
+          } else {
+            id(back_light).turn_on().set_brightness(0.5).perform();
+          }
 
 output:
   - platform: ledc
@@ -130,37 +141,31 @@ output:
 light:
   - platform: monochromatic
     id: back_light
-    name: LCD Backlight
-    entity_category: config
+    name: "LCD Backlight"
     output: backlight_output
     restore_mode: ALWAYS_ON
-    default_transition_length: 50ms
+    default_transition_length: 500ms
+    gamma_correct: 1.0
+    initial_state:
+      state: ON
+      brightness: 0.5
 
 interval:
   - interval: 1s
     then:
       - lambda: |-
-          static int countdown = 0;
-          if (id(countdown_control).state) {
-            if (countdown == 0) {
-              countdown = 60;
+          if (id(back_light).current_values.is_on()) {
+            id(idle_timer)++;
+            
+            // Dim to 25% after 120 seconds (2 minutes)
+            if (id(idle_timer) == 120) {
+              id(back_light).turn_on().set_brightness(0.25).perform();
             }
-            if (countdown > 0) {
-              id(countdown_timer).publish_state((std::to_string(countdown) + "seconds").c_str());
-              countdown--;
-            } else {
-              id(countdown_timer).publish_state("Time's up!");
-              id(countdown_control).turn_off();
-            }
-          }
-          if (id(arming_timer_active)) {
-            if (id(arming_countdown) > 0) {
-              id(arming_countdown)--;
-              // Publish to a temporary sensor
-              id(alarm_countdown_value).publish_state(id(arming_countdown));
-            } else {
-              id(arming_timer_active) = false;
-              id(alarm_countdown_value).publish_state(-1);
+            
+            // Turn off after 240 seconds (4 minutes)
+            if (id(idle_timer) >= 240) {
+              id(back_light).turn_off();
+              id(idle_timer) = 0;
             }
           }
 
@@ -180,13 +185,27 @@ globals:
   - id: current_page
     type: std::string
     initial_value: '"clock_page"'
-
+  - id: idle_timer
+    type: int
+    initial_value: '0'
+  - id: is_dimmed
+    type: bool
+    initial_value: 'false'
+  - id: time_input
+    type: std::string
+    initial_value: '""'
+  - id: time_period
+    type: std::string
+    initial_value: '"AM"'
   - id: arming_countdown
     type: int
     initial_value: "0"
   - id: arming_timer_active
     type: bool
     initial_value: "false"
+  - id: entered_time
+    type: std::string
+    initial_value: "\"\""
     
 image:
   - file: "HA1.png"
@@ -203,101 +222,150 @@ button:
 switch:
   - platform: template
     id: steph_ceiling_led_switch
+    name: "Steph Ceiling LED"
     optimistic: true
     on_turn_on:
       - homeassistant.service:
           service: light.turn_on
           data:
             entity_id: light.steph_ceiling_led
+      - lvgl.label.update:
+          id: ceiling_led_lvgl
+          text_color: 0xFFC000
     on_turn_off:
       - homeassistant.service:
           service: light.turn_off
           data:
             entity_id: light.steph_ceiling_led
+      - lvgl.label.update:
+          id: ceiling_led_lvgl
+          text_color: 0x808080
 
   - platform: template
     id: string_led_switch
+    name: "String LED"
     optimistic: true
     on_turn_on:
       - homeassistant.service:
           service: light.turn_on
           data:
             entity_id: light.string_led
+      - lvgl.label.update:
+          id: string_led_lvgl
+          text_color: 0xFFC000
     on_turn_off:
       - homeassistant.service:
           service: light.turn_off
           data:
             entity_id: light.string_led
-
-  - platform: template
-    id: mini_led_switch
-    optimistic: true
-    on_turn_on:
-      - homeassistant.service:
-          service: light.turn_on
-          data:
-            entity_id: light.mini_led
-    on_turn_off:
-      - homeassistant.service:
-          service: light.turn_off
-          data:
-            entity_id: light.mini_led
-
-  - platform: template
-    id: steph_floor_led_switch
-    optimistic: true
-    on_turn_on:
-      - homeassistant.service:
-          service: light.turn_on
-          data:
-            entity_id: light.steph_floor_led
-    on_turn_off:
-      - homeassistant.service:
-          service: light.turn_off
-          data:
-            entity_id: light.steph_floor_led
-
-  - platform: template
-    id: keiko_led_switch
-    optimistic: true
-    on_turn_on:
-      - homeassistant.service:
-          service: light.turn_on
-          data:
-            entity_id: light.keiko_led
-    on_turn_off:
-      - homeassistant.service:
-          service: light.turn_off
-          data:
-            entity_id: light.keiko_led
+      - lvgl.label.update:
+          id: string_led_lvgl
+          text_color: 0x808080
 
   - platform: template
     id: main_tv_light_switch
+    name: "Main TV Light"
     optimistic: true
     on_turn_on:
       - homeassistant.service:
           service: light.turn_on
           data:
             entity_id: light.main_tv_light
+      - lvgl.label.update:
+          id: main_tv_light_lvgl
+          text_color: 0xFFC000
     on_turn_off:
       - homeassistant.service:
           service: light.turn_off
           data:
             entity_id: light.main_tv_light
+      - lvgl.label.update:
+          id: main_tv_light_lvgl
+          text_color: 0x808080
+
+  - platform: template
+    id: mini_led_switch
+    name: "Mini LED"
+    optimistic: true
+    on_turn_on:
+      - homeassistant.service:
+          service: light.turn_on
+          data:
+            entity_id: light.mini_led
+      - lvgl.label.update:
+          id: mini_led_lvgl
+          text_color: 0xFFC000
+    on_turn_off:
+      - homeassistant.service:
+          service: light.turn_off
+          data:
+            entity_id: light.mini_led
+      - lvgl.label.update:
+          id: mini_led_lvgl
+          text_color: 0x808080
+
+  - platform: template
+    id: steph_floor_led_switch
+    name: "Steph Floor LED"
+    optimistic: true
+    on_turn_on:
+      - homeassistant.service:
+          service: light.turn_on
+          data:
+            entity_id: light.steph_floor_led
+      - lvgl.label.update:
+          id: floor_led_lvgl
+          text_color: 0xFFC000
+    on_turn_off:
+      - homeassistant.service:
+          service: light.turn_off
+          data:
+            entity_id: light.steph_floor_led
+      - lvgl.label.update:
+          id: floor_led_lvgl
+          text_color: 0x808080
+
+  - platform: template
+    id: keiko_led_switch
+    name: "Keiko LED"
+    optimistic: true
+    on_turn_on:
+      - homeassistant.service:
+          service: light.turn_on
+          data:
+            entity_id: light.keiko_led
+      - lvgl.label.update:
+          id: keiko_led_lvgl
+          text_color: 0xFFC000
+    on_turn_off:
+      - homeassistant.service:
+          service: light.turn_off
+          data:
+            entity_id: light.keiko_led
+      - lvgl.label.update:
+          id: keiko_led_lvgl
+          text_color: 0x808080
 
   - platform: template
     id: fan_plug_switch
+    name: "Fan Plug"
     optimistic: true
     on_turn_on:
       - homeassistant.service:
           service: switch.turn_on
           data:
             entity_id: switch.fan_plug_switch
+      - lvgl.label.update:
+          id: fan_lvgl
+          text_color: 0xFFC000
     on_turn_off:
       - homeassistant.service:
           service: switch.turn_off
           data:
             entity_id: switch.fan_plug_switch
+      - lvgl.label.update:
+          id: fan_lvgl
+          text_color: 0x808080
 
   - platform: template
     id: ceiling_light_switch
@@ -608,7 +676,7 @@ text_sensor:
                   if (hour == 0) hour = 12;
               }
 
-              return str_sprintf("Alarm: %d:%02d %s", hour, minute, period);
+              return str_sprintf("Alarm Set %d:%02d %s", hour, minute, period);
               
 script:
   - id: time_update
@@ -828,7 +896,6 @@ script:
                                                                                                           text_font: icon_font_80
                                                                                                           text: "\U000F0590"
 
-
 sensor:  
   - platform: wifi_signal
     name: "WiFi db"
@@ -928,93 +995,165 @@ sensor:
                   id: alarm_countdown_label
                   hidden: true
 
+  - platform: template
+    id: brightness_percent
+    name: "Screen Brightness"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    lambda: |-
+      return id(back_light).current_values.get_brightness() * 100;
+    on_value:
+      - lvgl.label.update:
+          id: brightness_label
+          text: !lambda return str_sprintf("%.0f%%", x);
+
 binary_sensor:
-  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  # ACTIVE DEVICE CONTROLS
-  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   - platform: homeassistant
     id: steph_ceiling_led_state
     entity_id: light.steph_ceiling_led
     internal: true
-    publish_initial_state: true
     on_state:
       then:
-        - lvgl.label.update:
-            id: ceiling_led_lvgl
-            text_color: !lambda |-
-              return x ? lv_color_hex(0xFFC000) : lv_color_hex(0x808080);
+        - switch.template.publish:
+            id: steph_ceiling_led_switch
+            state: !lambda "return x;"
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - lvgl.label.update:
+                  id: ceiling_led_lvgl
+                  text_color: 0xFFC000
+            else:
+              - lvgl.label.update:
+                  id: ceiling_led_lvgl
+                  text_color: 0x808080
 
   - platform: homeassistant
     id: string_led_state
     entity_id: light.string_led
     internal: true
-    publish_initial_state: true
     on_state:
       then:
-        - lvgl.label.update:
-            id: string_led_lvgl
-            text_color: !lambda |-
-              return x ? lv_color_hex(0xFFC000) : lv_color_hex(0x808080);
+        - switch.template.publish:
+            id: string_led_switch
+            state: !lambda "return x;"
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - lvgl.label.update:
+                  id: string_led_lvgl
+                  text_color: 0xFFC000
+            else:
+              - lvgl.label.update:
+                  id: string_led_lvgl
+                  text_color: 0x808080
 
   - platform: homeassistant
     id: main_tv_light_state
     entity_id: light.main_tv_light
     internal: true
-    publish_initial_state: true
     on_state:
       then:
-        - lvgl.label.update:
-            id: main_tv_light_lvgl
-            text_color: !lambda |-
-              return x ? lv_color_hex(0xFFC000) : lv_color_hex(0x808080);
+        - switch.template.publish:
+            id: main_tv_light_switch
+            state: !lambda "return x;"
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - lvgl.label.update:
+                  id: main_tv_light_lvgl
+                  text_color: 0xFFC000
+            else:
+              - lvgl.label.update:
+                  id: main_tv_light_lvgl
+                  text_color: 0x808080
 
   - platform: homeassistant
     id: mini_led_state
     entity_id: light.mini_led
     internal: true
-    publish_initial_state: true
     on_state:
       then:
-        - lvgl.label.update:
-            id: mini_led_lvgl
-            text_color: !lambda |-
-              return x ? lv_color_hex(0xFFC000) : lv_color_hex(0x808080);
+        - switch.template.publish:
+            id: mini_led_switch
+            state: !lambda "return x;"
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - lvgl.label.update:
+                  id: mini_led_lvgl
+                  text_color: 0xFFC000
+            else:
+              - lvgl.label.update:
+                  id: mini_led_lvgl
+                  text_color: 0x808080
 
   - platform: homeassistant
     id: steph_floor_led_state
     entity_id: light.steph_floor_led
     internal: true
-    publish_initial_state: true
     on_state:
       then:
-        - lvgl.label.update:
-            id: floor_led_lvgl
-            text_color: !lambda |-
-              return x ? lv_color_hex(0xFFC000) : lv_color_hex(0x808080);
+        - switch.template.publish:
+            id: steph_floor_led_switch
+            state: !lambda "return x;"
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - lvgl.label.update:
+                  id: floor_led_lvgl
+                  text_color: 0xFFC000
+            else:
+              - lvgl.label.update:
+                  id: floor_led_lvgl
+                  text_color: 0x808080
 
   - platform: homeassistant
     id: keiko_led_state
     entity_id: light.keiko_led
     internal: true
-    publish_initial_state: true
     on_state:
       then:
-        - lvgl.label.update:
-            id: keiko_led_lvgl
-            text_color: !lambda |-
-              return x ? lv_color_hex(0xFFC000) : lv_color_hex(0x808080);
+        - switch.template.publish:
+            id: keiko_led_switch
+            state: !lambda "return x;"
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - lvgl.label.update:
+                  id: keiko_led_lvgl
+                  text_color: 0xFFC000
+            else:
+              - lvgl.label.update:
+                  id: keiko_led_lvgl
+                  text_color: 0x808080
 
   - platform: homeassistant
     id: fan_plug_state
     entity_id: switch.fan_plug_switch
     internal: true
-    publish_initial_state: true
     on_state:
       then:
-        - lvgl.label.update:
-            id: fan_lvgl
-            text_color: !lambda |-
-              return x ? lv_color_hex(0xFFC000) : lv_color_hex(0x808080);
+        - switch.template.publish:
+            id: fan_plug_switch
+            state: !lambda "return x;"
+        - if:
+            condition:
+              lambda: "return x;"
+            then:
+              - lvgl.label.update:
+                  id: fan_lvgl
+                  text_color: 0xFFC000
+            else:
+              - lvgl.label.update:
+                  id: fan_lvgl
+                  text_color: 0x808080
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # COMMENTED LEGACY CONTROLS (Old Button Page)
@@ -1239,6 +1378,9 @@ binary_sensor:
     index: 0
     on_press:
       then:
+        - lambda: |-
+            id(idle_timer) = 0;
+            id(back_light).turn_on().set_brightness(0.5).perform();
         - if:
             condition:
               light.is_off: back_light
@@ -1252,10 +1394,10 @@ binary_sensor:
                   condition:
                     lambda: |-
                       return (id(current_page) == "status_page" || 
-                             id(current_page) == "time_set_page" ||
-                             id(current_page) == "alarm_page" || 
-                             id(current_page) == "settings_page" ||
-                             id(current_page) == "button_page");
+                            id(current_page) == "time_set_page" ||
+                            id(current_page) == "alarm_page" || 
+                            id(current_page) == "settings_page" ||
+                            id(current_page) == "button_page");
                   then:
                     - lvgl.page.show: clock_page
               - if:
@@ -1341,7 +1483,7 @@ font:
       - "\U000F059C" # mdi-weather-sunset-up
       - "\U000F0F38" # mdi-weather-tornado
       - "\U000F059D" # mdi-weather-windy
-      - "\U000F059E" # mdi-weather-windy-variant   F072A
+      - "\U000F059E" # mdi-weather-windy-variant
       - "\U000F0450" # mdi-refresh
       - "\U000F0A19" # mdi-toggle off
       - "\U000F0521" # mdi-toggle on
@@ -1351,7 +1493,7 @@ font:
       - "\U000F02DC" # mdi-home button
       - "\U000F0B2A" # mdi-right
       - "\U000F04B9" # mdi-living room
-      - "\U000F1061" # mdi-dining
+      - "\U000F1061" # mdi-dining 502
       - "\U000F04DE" # mdi-kitchen stove
       - "\U000F1051" # mdi-led strip variant
       - "\U000F06E8" # mdi-light bulb illuminated
@@ -1376,12 +1518,18 @@ font:
       - "\U000F05B1" # mdi-windows open
       - "\U000F05AE" # mdi-windows closed
       - "\U000F0020" # mdi-alarm clock
-      - "\U000F02FD" # mdi-information F08D6
+      - "\U000F02FD" # mdi-information
       - "\U000F08D6" # mdi-settings cogs
       - "\U000F16BD" # mdi-wifi check
       - "\U000F0023" # mdi-alarm clock off
-      - "\U000F0E1E" # mdi-check mark 
+      - "\U000F012C" # mdi-check mark 
       - "\U000F12BA" # mdi-string LED
+      - "\U000F0502" # mdi-television
+      - "\U000F0A43" # mdi-dog 
+      - "\U000F0099" # mdi-bed-outline
+      - "\U000F0A44" # mdi-dog-side
+      - "\U000F006E" # mdi-backspace
+      
 
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
     id: icon_font_120
@@ -1406,6 +1554,8 @@ font:
     glyphs: *icon_glyphs 
      
 color:
+  - id: dk_gray
+    hex: '404040'
   - id: gray
     hex: '999999'
   - id: green
@@ -1492,7 +1642,7 @@ lvgl:
             - lvgl.widget.hide: boot_screen
   theme:
     button:
-      bg_color: dk_blue
+      bg_color: dk_gray
       bg_opa: COVER
       border_color: black
       border_width: 0
@@ -1505,13 +1655,13 @@ lvgl:
       shadow_width: 5
       shadow_opa: 70%
       checked: 
-        bg_color: blue_drk
+        bg_color: dk_gray
         bg_opa: COVER
-        border_color: black
-        border_width: 2
-        text_color: yellow
+        border_color: dk_gray
+        border_width: 0
+        #text_color: yellow
         radius: 20
-        shadow_color: yellow
+        shadow_color: dk_gray
         shadow_ofs_x: 0
         shadow_ofs_y: 0
         shadow_spread: 5
@@ -1590,7 +1740,31 @@ lvgl:
       radius: 0
       scrollbar_mode: "OFF"
 
-  
+ ### Buttons Page ###
+    - id: bp_button_style
+      bg_color: dk_gray
+      bg_opa: COVER
+      border_color: dk_gray
+      border_width: 2
+      radius: 10
+      shadow_color: dk_gray
+      shadow_ofs_x: 0
+      shadow_ofs_y: 0
+      shadow_spread: 5
+      shadow_width: 5
+      shadow_opa: 70%
+
+    - id: bp_main_content
+      bg_color: black
+      text_color: amber
+      text_align: CENTER
+      text_font: montserrat_14
+      width: 100%
+      height: 100%    
+      align: CENTER
+      border_width: 0
+      radius: 0 
+
   ### others ###
     - id: main_content
       bg_color: black
@@ -1637,237 +1811,195 @@ lvgl:
     - id: timer_style
       bg_opa: 0
       border_width: 0  
-    
-    - id: button_icon_style
-      text_font: icon_font_120
-      align: CENTER
-      bg_opa: 0
-      border_width: 0
 
 ######### buttons page ################
   pages:
     - id: button_page
       widgets:
         - obj: 
-            styles: main_content
-            text_font: montserrat_16
+            styles: bp_main_content
+            text_font: montserrat_20
             width: 100%
             height: 100%
             layout: 
-              pad_column: 10
-              pad_row: 2
               type: GRID 
               grid_columns: [FR(1), FR(1), FR(1), FR(1)] 
-              grid_rows: [FR(70), FR(20), FR(70), FR(20)]
-
+              grid_rows: [FR(1), FR(1)]
+              pad_column: 2  # No space between columns
+              pad_row: 0     # No space between rows
             widgets:
               - button:
-                  checkable: true
                   id: button_1
                   grid_cell_column_pos: 0
                   grid_cell_row_pos: 0
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: ceiling_led_lvgl
                         text_font: icon_font_120
-                        text: "\U000F0769"
-                        align: CENTER  
+                        text: "\U000F1051"
+                        text_color: !lambda |-
+                          return id(steph_ceiling_led_switch).state ? 
+                            lv_color_hex(0xFFC000) : 
+                            lv_color_hex(0x808080);
+                        align: CENTER
                   on_click:
                     - switch.toggle: steph_ceiling_led_switch
-              - label:
-                  grid_cell_column_pos: 0 
-                  grid_cell_row_pos: 1 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "Ceiling"
-                  text_align: CENTER                  
 
               - button:
-                  checkable: true
                   id: button_2
                   grid_cell_column_pos: 1
                   grid_cell_row_pos: 0
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: string_led_lvgl
                         text_font: icon_font_120
                         text: "\U000F12BA"
+                        text_color: !lambda |-
+                          return id(string_led_switch).state ? 
+                            lv_color_hex(0xFFC000) : 
+                            lv_color_hex(0x808080);
                         align: CENTER
                   on_click:
                     - switch.toggle: string_led_switch
-              - label:
-                  grid_cell_column_pos: 1 
-                  grid_cell_row_pos: 1 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "String"
-                  text_align: CENTER                  
 
               - button:
-                  checkable: true
                   id: button_3
                   grid_cell_column_pos: 2
                   grid_cell_row_pos: 0
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: main_tv_light_lvgl
                         text_font: icon_font_120
-                        text: "\U000F0E1E" 
+                        text: "\U000F0502"
+                        text_color: !lambda |-
+                          return id(main_tv_light_switch).state ? 
+                            lv_color_hex(0xFFC000) : 
+                            lv_color_hex(0x808080);
                         align: CENTER
                   on_click:
-                    - switch.toggle: main_tv_light_switch                                  
-              - label:
-                  grid_cell_column_pos: 2 
-                  grid_cell_row_pos: 1 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "TV LED"
-                  text_align: CENTER                  
+                    - switch.toggle: main_tv_light_switch
 
               - button:
-                  checkable: true
                   id: button_4
                   grid_cell_column_pos: 3
                   grid_cell_row_pos: 0
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: mini_led_lvgl
                         text_font: icon_font_120
-                        text: "\U000F06E8"
+                        text: "\U000F1051"
+                        text_color: !lambda |-
+                          return id(mini_led_switch).state ? 
+                            lv_color_hex(0xFFC000) : 
+                            lv_color_hex(0x808080);
                         align: CENTER
                   on_click:
                     - switch.toggle: mini_led_switch
-              - label:                        
-                  grid_cell_column_pos: 3 
-                  grid_cell_row_pos: 1 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "Mini LED"
-                  text_align: CENTER                                   
-                 
-## second row ##
+
               - button:
-                  checkable: true
                   id: button_5
                   grid_cell_column_pos: 0
-                  grid_cell_row_pos: 2
+                  grid_cell_row_pos: 1
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: fan_lvgl
                         text_font: icon_font_120
-                        text: "\U000F0210"  
+                        text: "\U000F0210"
+                        text_color: !lambda |-
+                          return id(fan_plug_switch).state ? 
+                            lv_color_hex(0xFFC000) : 
+                            lv_color_hex(0x808080);
                         align: CENTER
                   on_click:
                     - switch.toggle: fan_plug_switch
-              - label:
-                  grid_cell_column_pos: 0 
-                  grid_cell_row_pos: 3 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "Fan"
-                  text_align: CENTER                  
 
               - button:
-                  checkable: true
                   id: button_6
                   grid_cell_column_pos: 1
-                  grid_cell_row_pos: 2
+                  grid_cell_row_pos: 1
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: floor_led_lvgl
                         text_font: icon_font_120
-                        text: "\U000F04CD"
+                        text: "\U000F0099"
+                        text_color: !lambda |-
+                          return id(steph_floor_led_switch).state ? 
+                            lv_color_hex(0xFFC000) : 
+                            lv_color_hex(0x808080);
                         align: CENTER
                   on_click:
                     - switch.toggle: steph_floor_led_switch
-              - label:
-                  grid_cell_column_pos: 1 
-                  grid_cell_row_pos: 3 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "Bed LED"
-                  text_align: CENTER                  
 
               - button:
-                  checkable: true
                   id: button_7
                   grid_cell_column_pos: 2
-                  grid_cell_row_pos: 2
+                  grid_cell_row_pos: 1
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: keiko_led_lvgl
                         text_font: icon_font_120
-                        text: "\U000F06E8"  
+                        text: "\U000F0A43"
+                        text_color: !lambda |-
+                          return id(keiko_led_switch).state ? 
+                            lv_color_hex(0xFFC000) : 
+                            lv_color_hex(0x808080);
                         align: CENTER
                   on_click:
-                    - switch.toggle: keiko_led_switch
-              - label:
-                  grid_cell_column_pos: 2 
-                  grid_cell_row_pos: 3 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "Keiko LED"
-                  text_align: CENTER                  
+                    - switch.toggle: keiko_led_switch                
 
               - button:
+                  styles: bp_button_style
                   checkable: false
                   id: button_8
                   grid_cell_column_pos: 3
-                  grid_cell_row_pos: 2
+                  grid_cell_row_pos: 1
                   grid_cell_x_align: STRETCH
                   grid_cell_y_align: STRETCH
-                  pressed:
-                    bg_color: red
+                  width: 100%
+                  height: 100%
                   widgets:
                     - label:
                         id: heat_boost_lvgl
                         text_font: icon_font_120
                         text: "\U000F08D6"
+                        text_color: gray
                         align: CENTER
                   on_click:
-                    - lvgl.page.show: settings_page 
-              - label:
-                  grid_cell_column_pos: 3
-                  grid_cell_row_pos: 3 
-                  grid_cell_x_align: STRETCH
-                  grid_cell_y_align: STRETCH
-                  text: "Settings"
-                  text_align: CENTER             
+                    - lvgl.page.show: settings_page            
 
       on_load:   
         - switch.turn_on: home_page_flag  
         - lambda: id(current_page) = "button_page";     
       on_unload:
         - switch.turn_off: home_page_flag
-
 #################### clock page ####################
     - id: clock_page
       widgets:
@@ -1927,14 +2059,15 @@ lvgl:
                   id: display_set_time
                   text: "Loading..."
                   text_align: CENTER
-                  text_color: red
+                  text_color: green
                   text_font: montserrat_24
                   on_click:
-                    - lvgl.page.show: time_set_page
+                    - lvgl.page.show: time_input_page
                   
               - label:
                   id: display_date
                   text_align: CENTER
+                  text_color: dk_blue
                   text_font: montserrat_24
                   text: " "
 
@@ -2307,6 +2440,12 @@ lvgl:
             text_color: grey
             scrollbar_mode: "OFF"
             widgets:
+              - label:
+                  id: brightness_label
+                  align: BOTTOM_LEFT
+                  text_font: montserrat_18
+                  text_color: grey
+                  text: "0%"
               - label:
                   align: BOTTOM_RIGHT
                   translate_x: -100
@@ -2863,3 +3002,338 @@ lvgl:
                 id(time_set_am_pm).c_str()
               );
         - lambda: id(current_page) = "time_set_page";
+#############################################################################
+
+    - id: time_input_page
+      styles: main_content
+      widgets:
+        - label:
+            id: time_display_main
+            text: "--:--"
+            text_font: montserrat_24
+            text_color: white
+            x: -40
+            y: 20
+            align: TOP_MID
+            text_align: CENTER
+
+        - button:
+            id: am_pm_btn
+            width: 60
+            height: 35
+            bg_color: blue_drk
+            x: 40
+            y: 20
+            align: TOP_MID
+            widgets:
+              - label:
+                  id: am_pm_label_alt
+                  text: "AM"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+                  text_align: CENTER
+            on_click:
+              - lambda: |-
+                  id(time_set_am_pm) = (id(time_set_am_pm) == "PM") ? "AM" : "PM";
+              - lvgl.label.update:
+                  id: am_pm_label_alt
+                  text: !lambda return id(time_set_am_pm);
+
+        - button:
+            id: btn_1
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: -90
+            translate_y: -60
+            widgets:
+              - label:
+                  text: "1"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "1";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_2
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: -30
+            translate_y: -60
+            widgets:
+              - label:
+                  text: "2"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "2";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_3
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: 30
+            translate_y: -60
+            widgets:
+              - label:
+                  text: "3"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "3";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_back
+            width: 50
+            height: 50
+            bg_color: red
+            pressed:
+              bg_color: blue
+            x: 50%
+            y: 50%
+            translate_x: 90
+            translate_y: -60
+            widgets:
+              - label:
+                  text: "\U000F012C"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (!id(entered_time).empty()) id(entered_time).pop_back();
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_4
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: -90
+            translate_y: 0
+            widgets:
+              - label:
+                  text: "4"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "4";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_5
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: -30
+            translate_y: 0
+            widgets:
+              - label:
+                  text: "5"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "5";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_6
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: 30
+            translate_y: 0
+            widgets:
+              - label:
+                  text: "6"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "6";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_0
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: 90
+            translate_y: 0
+            widgets:
+              - label:
+                  text: "0"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "0";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_7
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: -90
+            translate_y: 60
+            widgets:
+              - label:
+                  text: "7"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "7";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_8
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: -30
+            translate_y: 60
+            widgets:
+              - label:
+                  text: "8"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "8";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_9
+            width: 50
+            height: 50
+            bg_color: blue_drk
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: 30
+            translate_y: 60
+            widgets:
+              - label:
+                  text: "9"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() < 4) id(entered_time) += "9";
+              - lvgl.label.update:
+                  id: time_display_main
+                  text: !lambda return id(entered_time).c_str();
+
+        - button:
+            id: btn_confirm
+            width: 50
+            height: 50
+            bg_color: green
+            pressed:
+              bg_color: red
+            x: 50%
+            y: 50%
+            translate_x: 90
+            translate_y: 60
+            widgets:
+              - label:
+                  text: "\U000F0E1E"
+                  text_font: montserrat_16
+                  text_color: white
+                  align: CENTER
+            on_click:
+              - lambda: |-
+                  if (id(entered_time).size() == 4) {
+                    int hour = atoi(id(entered_time).substr(0,2).c_str());
+                    int minute = atoi(id(entered_time).substr(2,2).c_str());
+                    if (id(time_set_am_pm) == "PM" && hour != 12) hour += 12;
+                    if (id(time_set_am_pm) == "AM" && hour == 12) hour = 0;
+                    id(entered_time) = str_sprintf("%02d:%02d:00", hour, minute);
+                  }
+              - homeassistant.service:
+                  service: input_datetime.set_datetime
+                  data:
+                    entity_id: input_datetime.time
+                    time: !lambda return id(entered_time).c_str();
+              - lvgl.page.show: clock_page
+              - lambda: id(entered_time) = "";
