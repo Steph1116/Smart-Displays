@@ -154,10 +154,29 @@ interval:
               id(countdown_control).turn_off();  // Auto turn off switch when countdown finishes
             }
           }
+
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: return id(arming_timer_active);
+          then:
+            - lambda: |-
+                id(arming_countdown)--;
+                if (id(arming_countdown) <= 0) {
+                  id(arming_timer_active) = false;
+                }
+                id(alarm_countdown_value).publish_state(id(arming_countdown));
 globals:
   - id: current_pin
     type: std::string
     initial_value: "" 
+  - id: arming_timer_active
+    type: bool
+    initial_value: "false"
+  - id: arming_countdown
+    type: int
+    initial_value: "0"
 
 button:
   - platform: restart
@@ -281,107 +300,138 @@ text_sensor:
             } else {
               return "ALARM SYSTEM DISARMED";
             }
-
+  
       - if:
           condition:
-            lambda: return id(alarm_status).state == "arming";
+            - lambda: return id(alarm_status).state == "arming";
           then:
+            - lambda: |-
+                id(arming_countdown) = 30;
+                id(arming_timer_active) = true;
+                id(alarm_countdown_value).publish_state(30);
+            - lvgl.label.update:
+                id: alarm_countdown_label
+                hidden: false
+                text: "30"
             - lvgl.label.update: 
                 id: alarm_status_lvgl
                 text_color: amber
-            - lvgl.label.update: 
-                id: disarm_lvgl
-                text_color: amber
-
-      - if:
-          condition:
-            lambda: return id(alarm_status).state == "armed_home";
-          then:
-            - lvgl.label.update: 
-                id: alarm_status_lvgl
-                text_color: red
-                text: "\U000F068A"
-            - lvgl.label.update: 
-                id: disarm_lvgl
-                text_color: red
-                text: "\U000F068A"
+            - lvgl.obj.update:
+                id: alarm_arm_home_btn
+                bg_color: amber
+            - lvgl.obj.update:
+                id: alarm_arm_away_btn
+                bg_color: amber
+            - lvgl.obj.update:
+                id: alarm_arm_night_btn
+                bg_color: amber
+          else:
+            - lambda: |-
+                id(arming_timer_active) = false;
+                id(arming_countdown) = 0;
+                id(alarm_countdown_value).publish_state(-1);
             - lvgl.label.update:
-                id: alarm_arm_home_lvgl
-                bg_color: red
-                text: "Armed Home"
+                id: alarm_countdown_label
+                hidden: true
+            - if:
+                condition:
+                  - lambda: return id(alarm_status).state == "armed_home";
+                then:
+                  - lvgl.label.update: 
+                      id: alarm_status_lvgl
+                      text_color: red
+                      text: "\U000F068A"
+                  - lvgl.obj.update:
+                      id: alarm_arm_home_btn
+                      bg_color: red
+                  - lvgl.label.update: 
+                      id: alarm_arm_home_lvgl
+                      bg_color: red
+                      text: "Armed\nHome"
+                  - lvgl.obj.update:
+                      id: alarm_arm_away_btn
+                      bg_color: green
+                  - lvgl.obj.update:
+                      id: alarm_arm_night_btn
+                      bg_color: green
+                else:
+                  - if:
+                      condition:
+                        - lambda: return id(alarm_status).state == "armed_away";
+                      then:
+                        - lvgl.label.update: 
+                            id: alarm_status_lvgl
+                            text_color: red
+                            text: "\U000F099D"
+                        - lvgl.obj.update: 
+                            id: alarm_arm_away_btn
+                            bg_color: red
+                        - lvgl.label.update: 
+                            id: alarm_arm_away_lvgl
+                            bg_color: red
+                            text: "Armed\nAway"
+                        - lvgl.obj.update:
+                            id: alarm_arm_home_btn
+                            bg_color: green
+                        - lvgl.obj.update:
+                            id: alarm_arm_night_btn
+                            bg_color: green
+                      else:
+                        - if:
+                            condition:
+                              - lambda: return id(alarm_status).state == "armed_night";
+                            then:
+                              - lvgl.label.update: 
+                                  id: alarm_status_lvgl
+                                  text_color: red
+                                  text: "\U000F1828"
+                              - lvgl.obj.update: 
+                                  id: alarm_arm_night_btn
+                                  bg_color: red
+                              - lvgl.label.update: 
+                                  id: alarm_arm_night_lvgl
+                                  bg_color: red
+                                  text: "Armed\nNight"
+                              - lvgl.obj.update:
+                                  id: alarm_arm_home_btn
+                                  bg_color: green
+                              - lvgl.obj.update:
+                                  id: alarm_arm_away_btn
+                                  bg_color: green
+                            else:
+                              - if:
+                                  condition:
+                                    - lambda: return id(alarm_status).state == "disarmed";
+                                  then:
+                                    - lvgl.label.update: 
+                                        id: alarm_status_lvgl
+                                        text_color: green
+                                        text: "\U000F099E"
+                                    - lvgl.obj.update:
+                                        id: alarm_arm_home_btn
+                                        bg_color: green
+                                    - lvgl.obj.update:
+                                        id: alarm_arm_away_btn
+                                        bg_color: green
+                                    - lvgl.obj.update:
+                                        id: alarm_arm_night_btn
+                                        bg_color: green
+                                    - switch.turn_off: countdown_control
+                                  else:
+                                    if: 
+                                      condition:
+                                        - lambda: return id(alarm_status).state == "triggered";
+                                      then:
+                                        lvgl.page.show: triggered_page
+                                      else:
+                                        if:
+                                          condition:
+                                            - lambda: return id(alarm_status).state == "pending";
+                                          then: 
+                                            - lvgl.page.show: disarming_page
+                                            - switch.turn_on: countdown_control
 
-      - if:
-          condition:
-            lambda: return id(alarm_status).state == "armed_away";
-          then:
-            - lvgl.label.update: 
-                id: alarm_status_lvgl
-                text_color: red
-                text: "\U000F099D"
-            - lvgl.label.update: 
-                id: disarm_lvgl
-                text_color: red
-                text: "\U000F099D"
-            - lvgl.label.update:
-                id: alarm_arm_away_lvgl
-                bg_color: red
-                text: "Armed Away"
 
-      - if:
-          condition:
-            lambda: return id(alarm_status).state == "armed_night";
-          then:
-            - lvgl.label.update: 
-                id: alarm_status_lvgl
-                text_color: red
-                text: "\U000F1828"
-            - lvgl.label.update: 
-                id: disarm_lvgl
-                text_color: red
-                text: "\U000F1828"
-            - lvgl.label.update:
-                id: alarm_arm_night_lvgl
-                bg_color: red
-                text: "Armed Night"
-
-      - if:
-          condition:
-            lambda: return id(alarm_status).state == "disarmed";
-          then:
-            - lvgl.label.update: 
-                id: alarm_status_lvgl
-                text_color: green
-                text: "\U000F099E"
-            - lvgl.label.update: 
-                id: disarm_lvgl
-                text_color: green
-                text: "\U000F099E"
-            - lvgl.label.update: 
-                id: alarm_arm_away_lvgl
-                bg_color: green
-                text: "Arm Away"
-            - lvgl.label.update: 
-                id: alarm_arm_night_lvgl
-                bg_color: green
-                text: "Arm Night"
-            - lvgl.label.update: 
-                id: alarm_arm_home_lvgl
-                bg_color: green
-                text: "Arm Home"
-            - switch.turn_off: countdown_control
-
-      - if:
-          condition:
-            lambda: return id(alarm_status).state == "triggered";
-          then:
-            - lvgl.page.show: triggered_page
-
-      - if:
-          condition:
-            lambda: return id(alarm_status).state == "pending";
-          then: 
-            - lvgl.page.show: disarming_page
-            - switch.turn_on: countdown_control
   - platform: template
     id: countdown_timer
     # name: countdown  
@@ -635,6 +685,25 @@ script:
 
 
 sensor:  
+  - platform: template
+    id: alarm_countdown_value
+    internal: true
+    accuracy_decimals: 0
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: return x >= 0;
+            then:
+              - lvgl.label.update:
+                  id: alarm_countdown_label
+                  text: !lambda |-
+                    return str_sprintf("%02d", static_cast<int>(x));
+                  hidden: false
+            else:
+              - lvgl.label.update:
+                  id: alarm_countdown_label
+                  hidden: true
 
   - platform: wifi_signal
     name: "WiFi db"
@@ -1180,37 +1249,37 @@ color:
   - id: dk_blue
     hex: '0033cc'
 
-key_collector:
-  - source_id: lvgl_keypad
-    min_length: 4
-    max_length: 4
-    end_keys: "#"
-    end_key_required: true
-    back_keys: "*"
-    allowed_keys: "0123456789*#"
-    timeout: 5s
-    on_progress:
-      - if:
-          condition:
-            lambda: return (0 != x.compare(std::string{""}));
-          then:
-            - lvgl.label.update:
-                id: lvgl_label
-                text: !lambda 'return x.c_str();'
-                text_color: white
-          else:
-            - lvgl.label.update:
-                id: lvgl_label
-                text: "Enter Code"
-                text_color: grey
-    on_result:
-      - lambda: |-
-          id(current_pin) = x.c_str();
-      - homeassistant.service:
-          service: alarm_control_panel.alarm_disarm
-          data:
-            entity_id: alarm_control_panel.alarmo
-            code: !lambda return id(current_pin).c_str();
+# key_collector:
+#   - source_id: lvgl_keypad
+#     min_length: 4
+#     max_length: 4
+#     end_keys: "#"
+#     end_key_required: true
+#     back_keys: "*"
+#     allowed_keys: "0123456789*#"
+#     timeout: 5s
+#     on_progress:
+#       - if:
+#           condition:
+#             lambda: return (0 != x.compare(std::string{""}));
+#           then:
+#             - lvgl.label.update:
+#                 id: lvgl_label
+#                 text: !lambda 'return x.c_str();'
+#                 text_color: white
+#           else:
+#             - lvgl.label.update:
+#                 id: lvgl_label
+#                 text: "Enter Code"
+#                 text_color: grey
+#     on_result:
+#       - lambda: |-
+#           id(current_pin) = x.c_str();
+#       - homeassistant.service:
+#           service: alarm_control_panel.alarm_disarm
+#           data:
+#             entity_id: alarm_control_panel.alarmo
+#             code: !lambda return id(current_pin).c_str();
 
 lvgl:
   displays:
@@ -1343,6 +1412,10 @@ lvgl:
       border_width: 0
       radius: 0
       scrollbar_mode: "OFF"
+
+    - id: timer_style
+      bg_opa: 0
+      border_width: 0
  
                              
 ########## bottom bar ##########
@@ -1406,15 +1479,99 @@ lvgl:
                   text_color: red
                   text: "\U000F099E"
                   on_click:
-                    if:
-                      condition:
-                        - lambda: return (id(alarm_status).state == "arming" || id(alarm_status).state == "armed_away" || id(alarm_status).state == "armed_home" || id(alarm_status).state == "armed_night");
-                      then:
-                        lvgl.page.show: disarm_page
-                      else:
-                        lvgl.page.show: alarm_page
-######### buttons page ################
+                    lvgl.page.show: alarm_page
+
   pages:
+############ clock page ##############
+    - id: clock_page
+      widgets:
+        - obj:
+            id: alarm_status_bar
+            width: 100%
+            height: 10%
+            align: TOP_MID
+            scrollbar_mode: "OFF"
+            bg_color: black
+            border_width: 0
+            border_opa: 0%
+            radius: 0
+            widgets:
+              - label:
+                  id: alarm_status_text
+                  align: CENTER
+                  text_font: montserrat_40
+                  text_color: black
+                  text: " " 
+                  on_click:
+                    lvgl.page.show: alarm_page
+                  
+        - obj:
+            styles: clock_main_content
+            border_width: 0
+            text_color: red
+            widgets:
+              - label:
+                  id: display_time_blank
+                  align: CENTER
+                  width: 100%
+                  text_align: CENTER
+                  text_color: red
+                  text_font: my_font160
+                  text: " " 
+                  on_click:
+                    lvgl.page.show: button_page
+                  
+              - label:
+                  id: display_date
+                  align: CENTER
+                  text: " "
+                  translate_y: 120
+                  text_font: montserrat_48
+
+              - label:
+                  id: door_status_lvgl
+                  align: TOP_RIGHT
+                  translate_x: -160
+                  translate_y: 20
+                  text_font: icon_font_60
+                  text_color: green
+                  text: "\U000F081B"
+                  on_click:
+                    lvgl.page.show: status_page
+
+              - label:
+                  id: window_status_lvgl
+                  align: TOP_RIGHT
+                  translate_x: -80
+                  translate_y: 20
+                  text_font: icon_font_60
+                  text_color: green
+                  text: "\U000F05AE"
+                  on_click:
+                    lvgl.page.show: status_page
+
+              - label:
+                  id: lights_status_lvgl
+                  align: TOP_RIGHT
+                  translate_y: 20
+                  text_font: icon_font_60
+                  text_color: green
+                  text: "\U000F1254"
+                  on_click:
+                    lvgl.page.show: status_page
+
+              # - label:
+              #     id: settings_page_lvgl
+              #     align: TOP_LEFT
+              #     # translate_x: 160
+              #     border_width: 5
+              #     text_font: icon_font_60
+              #     text_color: black
+              #     text: " "
+              #     on_click:
+              #       lvgl.page.show: settings_page
+
+######### buttons page ################
     - id: button_page
       widgets:
         - obj: 
@@ -1659,277 +1816,348 @@ lvgl:
       on_unload:
         - switch.turn_off: home_page_flag
 
-############ clock page ##############
-    - id: clock_page
-      widgets:
-        - obj:
-            id: alarm_status_bar
-            width: 100%
-            height: 10%
-            align: TOP_MID
-            scrollbar_mode: "OFF"
-            bg_color: black
-            border_width: 0
-            border_opa: 0%
-            radius: 0
-            widgets:
-              - label:
-                  id: alarm_status_text
-                  align: CENTER
-                  text_font: montserrat_40
-                  text_color: black
-                  text: " " 
-                  
-        - obj:
-            styles: clock_main_content
-            border_width: 0
-            text_color: red
-            widgets:
-              - label:
-                  id: display_time_blank
-                  align: CENTER
-                  width: 100%
-                  text_align: CENTER
-                  text_color: red
-                  text_font: my_font160
-                  text: " " 
-                  on_click:
-                    lvgl.page.show: button_page
-                  
-              - label:
-                  id: display_date
-                  align: CENTER
-                  text: " "
-                  translate_y: 120
-                  text_font: montserrat_48
-
-              - label:
-                  id: door_status_lvgl
-                  align: TOP_RIGHT
-                  translate_x: -160
-                  translate_y: 20
-                  text_font: icon_font_60
-                  text_color: green
-                  text: "\U000F081B"
-                  on_click:
-                    lvgl.page.show: status_page
-
-              - label:
-                  id: window_status_lvgl
-                  align: TOP_RIGHT
-                  translate_x: -80
-                  translate_y: 20
-                  text_font: icon_font_60
-                  text_color: green
-                  text: "\U000F05AE"
-                  on_click:
-                    lvgl.page.show: status_page
-
-              - label:
-                  id: lights_status_lvgl
-                  align: TOP_RIGHT
-                  translate_y: 20
-                  text_font: icon_font_60
-                  text_color: green
-                  text: "\U000F1254"
-                  on_click:
-                    lvgl.page.show: status_page
-
-              # - label:
-              #     id: settings_page_lvgl
-              #     align: TOP_LEFT
-              #     # translate_x: 160
-              #     border_width: 5
-              #     text_font: icon_font_60
-              #     text_color: black
-              #     text: " "
-              #     on_click:
-              #       lvgl.page.show: settings_page
-      
-########## alarm page #################
+#################### alarm control page ####################
     - id: alarm_page
       styles: main_content
-      widgets:    
-        - obj:
-            width: 500
-            height: 85
-            align: TOP_MID
-            scrollbar_mode: "OFF"         
-            bg_opa: TRANSP   
-            pad_all: 0
-            widgets:
-              - label:
-                  id: alarm_arm_home_lvgl
-                  align: CENTER
-                  text_align: CENTER
-                  text_font: montserrat_40
-                  text: "Arm Home"
-                  text_color: white
-                  width: 100%
-                  height: 100%
-                  bg_opa: COVER
-                  bg_color: green
-                  pad_top: 20
-
-            on_press:
-              - homeassistant.service:
-                  service: alarm_control_panel.alarm_arm_home
-                  data:
-                    entity_id: alarm_control_panel.alarmo
-                    code: !lambda return id(current_pin).c_str();
-              - lambda: |-
-                  id(current_pin) = ""; 
-        - obj:
-            width: 500
-            height: 85
-            align: CENTER
-            translate_y: -65
-            scrollbar_mode: "OFF"            
-            bg_opa: TRANSP   
-            pad_all: 0
-            widgets:
-              - label:
-                  id: alarm_arm_night_lvgl
-                  align: CENTER
-                  text_font: montserrat_40
-                  text_align: CENTER
-                  text: "Arm Night"
-                  text_color: white
-                  width: 100%
-                  height: 100%
-                  bg_opa: COVER
-                  bg_color: green
-                  pad_top: 20
-            on_press:
-              - homeassistant.service:
-                  service: alarm_control_panel.alarm_arm_night
-                  data:
-                    entity_id: alarm_control_panel.alarmo
-                    code: !lambda return id(current_pin).c_str();
-              - lambda: |-
-                  id(current_pin) = ""; 
-        - obj:
-            width: 500
-            height: 85
-            align: BOTTOM_MID
-            translate_y: -130
-            scrollbar_mode: "OFF"            
-            bg_opa: TRANSP   
-            pad_all: 0
-            widgets:
-              - label:
-                  id: alarm_arm_away_lvgl
-                  align: CENTER
-                  text_font: montserrat_40
-                  text_align: CENTER
-                  text: "Arm Away"
-                  text_color: white
-                  width: 100%
-                  height: 100%
-                  bg_opa: COVER
-                  bg_color: green
-                  pad_top: 20
-            on_press:
-              - homeassistant.service:
-                  service: alarm_control_panel.alarm_arm_away
-                  data:
-                    entity_id: alarm_control_panel.alarmo
-                    code: !lambda return id(current_pin).c_str();
-              - lambda: |-
-                  id(current_pin) = ""; 
- 
-
-    - id: disarm_page
-      styles: main_content
-      widgets:
+      widgets: 
         - obj: 
-            styles: main_content
-            border_width: 0
-            widgets:
-              - label:
-                  id: lvgl_label
-                  align: TOP_RIGHT
-                  text_font: montserrat_40
-                  text: "Enter Code"
-                  text_align: CENTER
-                  text_color: grey
-                  translate_x: -145
-                  translate_y: 15
-        - obj:
-            width: 315
-            height: 200
-            align: TOP_RIGHT
-            translate_x: -60
-            translate_y: 110
-            border_width: 0
+            width: 100%
+            height: 100%
             bg_color: black
-            scrollbar_mode: "OFF"            
+            border_width: 0
+            scrollable: false
+            layout: 
+              type: flex
+              flex_flow: column
+              flex_align_main: SPACE_EVENLY
+              flex_align_cross: CENTER
+            widgets: 
+              - obj: 
+                  width: 100%
+                  height: 45%
+                  bg_color: black
+                  border_width: 0
+                  layout: 
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: SPACE_EVENLY
+                    flex_align_cross: CENTER
+                  widgets: 
+                    - obj:
+                        id: alarm_arm_home_btn
+                        width: 45%
+                        height: 65%
+                        bg_color: green
+                        radius: 8
+                        scrollable: false
+                        widgets:
+                          - label:
+                              id: alarm_arm_home_lvgl
+                              text: "Arm\nHome"
+                              text_font: montserrat_34
+                              text_color: white
+                              align: CENTER
+                              text_align: CENTER
+                        on_press:
+                          - homeassistant.service:
+                              service: alarm_control_panel.alarm_arm_home
+                              data:
+                                entity_id: alarm_control_panel.alarmo
+                                code: !lambda return id(current_pin).c_str();
+                          - lambda: |-
+                              id(current_pin) = "";
+
+                    - obj:
+                        id: alarm_arm_away_btn
+                        width: 45%
+                        height: 65%
+                        bg_color: green
+                        radius: 8
+                        scrollable: false
+                        widgets:
+                          - label:
+                              id: alarm_arm_away_lvgl
+                              text: "Arm\nAway"
+                              text_font: montserrat_34
+                              text_color: white
+                              align: CENTER
+                              text_align: CENTER
+                        on_press:
+                          - homeassistant.service:
+                              service: alarm_control_panel.alarm_arm_away
+                              data:
+                                entity_id: alarm_control_panel.alarmo
+                                code: !lambda return id(current_pin).c_str();
+                          - lambda: |-
+                              id(current_pin) = "";
+
+              - label:
+                  id: alarm_countdown_label
+                  text: "30"
+                  text_color: gray
+                  text_font: montserrat_40
+                  hidden: true
+                  align: CENTER
+                  styles: timer_style
+
+              - obj: 
+                  width: 100%
+                  height: 45%
+                  bg_color: black
+                  border_width: 0
+                  layout: 
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: SPACE_EVENLY
+                    flex_align_cross: CENTER
+                  widgets: 
+                    - obj:
+                        id: alarm_arm_night_btn
+                        width: 45%
+                        height: 65%
+                        bg_color: green
+                        radius: 8
+                        scrollable: false
+                        widgets:
+                          - label:
+                              id: alarm_arm_night_lvgl
+                              text: "Arm\nNight"
+                              text_font: montserrat_34
+                              text_color: white
+                              align: CENTER
+                              text_align: CENTER
+                        on_press:
+                          - homeassistant.service:
+                              service: alarm_control_panel.alarm_arm_night
+                              data:
+                                entity_id: alarm_control_panel.alarmo
+                                code: !lambda return id(current_pin).c_str();
+                          - lambda: |-
+                              id(current_pin) = "";
+
+                    - obj:
+                        id: disarm_btn
+                        width: 45%
+                        height: 65%
+                        bg_color: red
+                        radius: 8
+                        scrollable: false
+                        widgets:
+                          - label:
+                              id: disarm_label
+                              text: "Disarm"
+                              text_font: montserrat_34
+                              text_color: white
+                              align: CENTER
+                              text_align: CENTER
+                        on_press:
+                          - homeassistant.service:
+                              service: alarm_control_panel.alarm_disarm
+                              data:
+                                entity_id: alarm_control_panel.alarmo
+                                code: !lambda return id(current_pin).c_str();
+                          - lambda: |-
+                              id(current_pin) = "";     
+# ########## alarm page #################
+#     - id: alarm_page
+#       styles: main_content
+#       widgets:    
+#         - obj:
+#             width: 500
+#             height: 85
+#             align: TOP_MID
+#             scrollbar_mode: "OFF"         
+#             bg_opa: TRANSP   
+#             pad_all: 0
+#             widgets:
+#               - label:
+#                   id: alarm_arm_home_lvgl
+#                   align: CENTER
+#                   text_align: CENTER
+#                   text_font: montserrat_40
+#                   text: "Arm Home"
+#                   text_color: white
+#                   width: 100%
+#                   height: 100%
+#                   bg_opa: COVER
+#                   bg_color: green
+#                   pad_top: 20
+
+#             on_press:
+#               - homeassistant.service:
+#                   service: alarm_control_panel.alarm_arm_home
+#                   data:
+#                     entity_id: alarm_control_panel.alarmo
+#                     code: !lambda return id(current_pin).c_str();
+#               - lambda: |-
+#                   id(current_pin) = ""; 
+#         - obj:
+#             width: 500
+#             height: 85
+#             align: CENTER
+#             translate_y: -65
+#             scrollbar_mode: "OFF"            
+#             bg_opa: TRANSP   
+#             pad_all: 0
+#             widgets:
+#               - label:
+#                   id: alarm_arm_night_lvgl
+#                   align: CENTER
+#                   text_font: montserrat_40
+#                   text_align: CENTER
+#                   text: "Arm Night"
+#                   text_color: white
+#                   width: 100%
+#                   height: 100%
+#                   bg_opa: COVER
+#                   bg_color: green
+#                   pad_top: 20
+#             on_press:
+#               - homeassistant.service:
+#                   service: alarm_control_panel.alarm_arm_night
+#                   data:
+#                     entity_id: alarm_control_panel.alarmo
+#                     code: !lambda return id(current_pin).c_str();
+#               - lambda: |-
+#                   id(current_pin) = ""; 
+#         - obj:
+#             width: 500
+#             height: 85
+#             align: BOTTOM_MID
+#             translate_y: -130
+#             scrollbar_mode: "OFF"            
+#             bg_opa: TRANSP   
+#             pad_all: 0
+#             widgets:
+#               - label:
+#                   id: alarm_arm_away_lvgl
+#                   align: CENTER
+#                   text_font: montserrat_40
+#                   text_align: CENTER
+#                   text: "Arm Away"
+#                   text_color: white
+#                   width: 100%
+#                   height: 100%
+#                   bg_opa: COVER
+#                   bg_color: green
+#                   pad_top: 20
+#             on_press:
+#               - homeassistant.service:
+#                   service: alarm_control_panel.alarm_arm_away
+#                   data:
+#                     entity_id: alarm_control_panel.alarmo
+#                     code: !lambda return id(current_pin).c_str();
+#               - lambda: |-
+#                   id(current_pin) = ""; 
+ 
+#################### disarm page ####################
+    # - id: disarm_page
+    #   styles: main_content
+    #   widgets:
+    #     - obj: 
+    #         styles: main_content
+    #         border_width: 0
+    #         widgets:
+    #           - label:
+    #               id: lvgl_label
+    #               align: TOP_RIGHT
+    #               text_font: montserrat_40
+    #               text: "Enter Code"
+    #               text_align: CENTER
+    #               text_color: grey
+    #               translate_x: -145
+    #               translate_y: 15
+    #     - obj:
+    #         width: 315
+    #         height: 200
+    #         align: TOP_RIGHT
+    #         translate_x: -60
+    #         translate_y: 110
+    #         border_width: 0
+    #         bg_color: black
+    #         scrollbar_mode: "OFF"            
+    #         widgets:
+    #           - label:
+    #               bg_color: black
+    #               id: disarm_lvgl
+    #               align: CENTER
+    #               text_font: icon_font_180
+    #               text: " "
+      
+    #     - buttonmatrix:
+    #         id: lvgl_keypad
+    #         x: 10
+    #         y: 10
+    #         width: 400
+    #         height: 360
+    #         text_font: montserrat_40
+    #         bg_color: bg_charcoal
+    #         border_width: 0
+    #         items:
+    #           pressed:
+    #             bg_color: grey
+    #         rows:
+    #           - buttons:
+    #               - text: 1
+    #                 control:
+    #                   no_repeat: true
+    #               - text: 2
+    #                 control:
+    #                   no_repeat: true
+    #               - text: 3
+    #                 control:
+    #                   no_repeat: true
+    #           - buttons:
+    #               - text: 4
+    #                 control:
+    #                   no_repeat: true
+    #               - text: 5
+    #                 control:
+    #                   no_repeat: true
+    #               - text: 6
+    #                 control:
+    #                   no_repeat: true
+    #           - buttons:
+    #               - text: 7
+    #                 control:
+    #                   no_repeat: true
+    #               - text: 8
+    #                 control:
+    #                   no_repeat: true
+    #               - text: 9
+    #                 control:
+    #                   no_repeat: true
+    #           - buttons:
+                    
+    #               - text: "\uF55A"
+    #                 key_code: "*"
+    #                 control:
+    #                   no_repeat: true
+    #               - text: 0
+    #                 control:
+    #                   no_repeat: true
+    #               - text: "#75D15F \uF00C#"
+    #                 key_code: "#"
+    #                 control:
+    #                   no_repeat: true
+    #                   recolor: true
+
+#################### disarmed page ####################
+    - id: disarmed_page
+      widgets:
+        - obj:
+            width: 100%
+            height: 100%
+            bg_color: green
             widgets:
               - label:
-                  bg_color: black
-                  id: disarm_lvgl
+                  text: "Disarmed"
+                  text_color: white
+                  text_font: montserrat_30
                   align: CENTER
-                  text_font: icon_font_180
-                  text: " "
-      
-        - buttonmatrix:
-            id: lvgl_keypad
-            x: 10
-            y: 10
-            width: 400
-            height: 360
-            text_font: montserrat_40
-            bg_color: bg_charcoal
-            border_width: 0
-            items:
-              pressed:
-                bg_color: grey
-            rows:
-              - buttons:
-                  - text: 1
-                    control:
-                      no_repeat: true
-                  - text: 2
-                    control:
-                      no_repeat: true
-                  - text: 3
-                    control:
-                      no_repeat: true
-              - buttons:
-                  - text: 4
-                    control:
-                      no_repeat: true
-                  - text: 5
-                    control:
-                      no_repeat: true
-                  - text: 6
-                    control:
-                      no_repeat: true
-              - buttons:
-                  - text: 7
-                    control:
-                      no_repeat: true
-                  - text: 8
-                    control:
-                      no_repeat: true
-                  - text: 9
-                    control:
-                      no_repeat: true
-              - buttons:
-                    
-                  - text: "\uF55A"
-                    key_code: "*"
-                    control:
-                      no_repeat: true
-                  - text: 0
-                    control:
-                      no_repeat: true
-                  - text: "#75D15F \uF00C#"
-                    key_code: "#"
-                    control:
-                      no_repeat: true
-                      recolor: true
+                  text_align: CENTER
 
+#################### triggered page ####################                  
     - id: triggered_page
       widgets:
         - obj: 
@@ -1982,7 +2210,17 @@ lvgl:
                         text: "Disarm"
                         align: CENTER  
                   on_press:
-                    lvgl.page.show: disarm_page
+                    - homeassistant.service:
+                        service: alarm_control_panel.alarm_disarm
+                        data:
+                          entity_id: alarm_control_panel.alarmo
+                    - lambda: |-
+                        id(current_pin) = "";
+                    - lvgl.page.show: disarmed_page
+                    - delay: 10s
+                    - lvgl.page.show: clock_page
+
+#################### disarming page ####################
     - id: disarming_page
       widgets:
         - obj: 
@@ -2048,7 +2286,15 @@ lvgl:
                         text: "Disarm"
                         align: CENTER  
                   on_press:
-                    lvgl.page.show: disarm_page
+                    - homeassistant.service:
+                        service: alarm_control_panel.alarm_disarm
+                        data:
+                          entity_id: alarm_control_panel.alarmo
+                    - lambda: |-
+                        id(current_pin) = "";
+                    - lvgl.page.show: disarmed_page
+                    - delay: 10s
+                    - lvgl.page.show: clock_page
       on_load:
         - lvgl.widget.hide: bottom_bar  
         - script.stop: backlight_off
@@ -2057,7 +2303,7 @@ lvgl:
         - lvgl.widget.show: bottom_bar
         - script.execute: backlight_off
 
-
+#################### settings page ####################
     - id: settings_page
       styles: main_content
       widgets:    
@@ -2114,6 +2360,8 @@ lvgl:
             bg_opa: TRANSP   
             pad_all: 0
             border_width: 0
+
+#################### status page ####################
     - id: status_page
       styles: main_content
       widgets:
