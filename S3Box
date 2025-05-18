@@ -972,10 +972,10 @@ sensor:
       - clamp:
           min_value: 0
           max_value: 100
-    on_value:
-      - lvgl.label.update:
-          id: battery_label
-          text: !lambda return str_sprintf("%.0f%%", x);
+    # on_value:
+    #   - lvgl.label.update:
+    #       id: battery_label
+    #       text: !lambda return str_sprintf("%.0f%%", x);
 
   - platform: aht10 
     i2c_id: bus_b
@@ -1703,6 +1703,8 @@ lvgl:
       border_width: 0
       radius: 0
       scrollbar_mode: "OFF"
+      clip_corner: true      
+      pad_all: 0             
 
     - id: main_clock_content
       bg_color: black
@@ -2069,136 +2071,142 @@ lvgl:
     - id: clock_page
       widgets:
         - obj:
-            styles: top_clock_bar
-            text_color: grey
+            width: 100%
+            height: 100%
+            bg_color: black
             widgets:
-              - label:
-                  id: battery_label
-                  align: TOP_LEFT
-                  text_font: montserrat_18
-                  #text_color: white
-                  text: "0%"
-                  #translate_y: 1 
-              
-              - label:
-                  id: alarm_status_lvgl
-                  align: TOP_LEFT
-                  translate_x: 50
-                  text_font: icon_font_40
-                  #text_color: red
-                  text: "\U000F099E"
-                  on_click:
-                    - lvgl.page.show: alarm_page
-
-              - label:
-                  id: door_status_lvgl
-                  align: TOP_MID
-                  text_font: icon_font_40
-                  text_color: green
-                  text: "\U000F081B"
-                  translate_x: -30
-                  on_click:
-                    lvgl.page.show: status_page
-
-              - label:
-                  id: window_status_lvgl
-                  align: TOP_MID
-                  text_font: icon_font_40
-                  text_color: green
-                  text: "\U000F05AE"
-                  on_click:
-                    lvgl.page.show: status_page
-
-              - label:
-                  id: lights_status_lvgl
-                  align: TOP_MID
-                  translate_x: 30
-                  text_font: icon_font_40
-                  text_color: green
-                  text: "\U000F1254"
-                  on_click:
-                    lvgl.page.show: status_page
-
-              - label:
-                  id: automation_status_lvgl
-                  align: TOP_RIGHT
-                  text_font: icon_font_40
-                  text: "\U000F0020"
-                  #text_color: red
-                  #translate_y: 1
-                  on_click:
-                    - homeassistant.service:
-                        service: automation.toggle
-                        data:
-                          entity_id: automation.morning_backup
-
-        - obj: 
-            styles: main_clock_content
-            scrollbar_mode: "OFF"
-            layout:
-              type: flex
-              flex_flow: column
-              flex_align_main: CENTER
-              flex_align_cross: CENTER
-              flex_align_track: CENTER
-            widgets:    
-              - label:
-                  id: display_time_blank
-                  text_align: CENTER
-                  text_color: red
-                  text_font: montserrat_48
-                  text: " "
-
-              - label:
-                  id: display_set_time
-                  text: "Loading..."
-                  text_align: CENTER
-                  text_color: green
-                  text_font: montserrat_24
-                  on_click:
-                    - lvgl.page.show: set_alarm_page
-                  
-              - label:
-                  id: display_date
-                  text_align: CENTER
-                  text_color: dk_blue
-                  text_font: montserrat_24
-                  text: " "
-
-        - obj: 
-            styles: bottom_clock_bar
-            text_color: grey
-            scrollbar_mode: "OFF"
-            widgets:            
-              - label:
-                  id: out_temp_lvgl_icon
-                  align: BOTTOM_LEFT
-                  text_font: icon_font_40
+              - obj:
+                  styles: top_clock_bar
+                  scrollable: false
                   text_color: grey
-                  text: "\U000F050F"
+                  widgets:
+                    # - label:
+                    #     id: battery_label
+                    #     align: TOP_LEFT
+                    #     text_font: montserrat_20
+                    #     #text_color: white
+                    #     text: "0%"
+                    #     #translate_y: 1 
+                    
+                    - label:
+                        id: alarm_status_lvgl
+                        align: TOP_LEFT
+                        # translate_x: 50
+                        text_font: icon_font_60
+                        #text_color: red
+                        text: "\U000F099E"
+                        on_click:
+                          - lvgl.page.show: alarm_page
 
-              - label:
-                  id: out_temp_lvgl
-                  align: BOTTOM_LEFT
-                  translate_x: 20
-                  #translate_y: 5
+                    - label:
+                        id: door_status_lvgl
+                        align: TOP_MID
+                        text_font: icon_font_60
+                        text_color: green
+                        text: "\U000F081B"
+                        translate_x: -30
+                        on_click:
+                          lvgl.page.show: status_page
+
+                    - label:
+                        id: window_status_lvgl
+                        align: TOP_MID
+                        text_font: icon_font_60
+                        text_color: green
+                        text: "\U000F05AE"
+                        on_click:
+                          lvgl.page.show: status_page
+
+                    - label:
+                        id: lights_status_lvgl
+                        align: TOP_MID
+                        translate_x: 30
+                        text_font: icon_font_60
+                        text_color: green
+                        text: "\U000F1254"
+                        on_click:
+                          lvgl.page.show: status_page
+
+                    - label:
+                        id: automation_status_lvgl
+                        align: TOP_RIGHT
+                        text_font: icon_font_60
+                        text: "\U000F0020"
+                        #text_color: red
+                        #translate_y: 1
+                        on_click:
+                          - homeassistant.service:
+                              service: automation.toggle
+                              data:
+                                entity_id: automation.morning_backup
+
+              - obj: 
+                  styles: main_clock_content
+                  scrollbar_mode: "OFF"
+                  layout:
+                    type: flex
+                    flex_flow: column
+                    flex_align_main: CENTER
+                    flex_align_cross: CENTER
+                    flex_align_track: CENTER
+                  widgets:    
+                    - label:
+                        id: display_time_blank
+                        text_align: CENTER
+                        text_color: red
+                        text_font: montserrat_48
+                        text: " "
+
+                    - label:
+                        id: display_set_time
+                        text: "Loading..."
+                        text_align: CENTER
+                        text_color: green
+                        text_font: montserrat_24
+                        on_click:
+                          - lvgl.page.show: set_alarm_page
+                        
+                    - label:
+                        id: display_date
+                        text_align: CENTER
+                        text_color: dk_blue
+                        text_font: montserrat_24
+                        text: " "
+
+              - obj: 
+                  styles: bottom_clock_bar
                   text_color: grey
-                  text_font: montserrat_18
-                  text: " "
+                  scrollbar_mode: "OFF"
+                  widgets:            
+                    - label:
+                        id: out_temp_lvgl_icon
+                        align: BOTTOM_LEFT
+                        text_font: icon_font_40
+                        text_color: grey
+                        text: "\U000F050F"
 
-              - label:
-                  id: display_weather
-                  align: CENTER
-                  #translate_x: 0
-                  text_font: icon_font_80
-                  text: "\U000F14E4" 
+                    - label:
+                        id: out_temp_lvgl
+                        align: BOTTOM_LEFT
+                        translate_x: 20
+                        #translate_y: 5
+                        text_color: grey
+                        text_font: montserrat_18
+                        text: " "
 
-              - label:
-                  id: display_weather_text
-                  align: BOTTOM_RIGHT
-                  #translate_x: 60
-                  text_font: montserrat_20
-                  text: " " 
+                    - label:
+                        id: display_weather
+                        align: CENTER
+                        #translate_x: 0
+                        text_font: icon_font_80
+                        text: "\U000F14E4" 
+
+                    - label:
+                        id: display_weather_text
+                        align: BOTTOM_RIGHT
+                        #translate_x: 60
+                        text_font: montserrat_20
+                        text: " " 
 
       on_load:
         - lambda: id(current_page) = "clock_page";
