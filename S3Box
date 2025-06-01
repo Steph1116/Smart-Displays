@@ -743,7 +743,7 @@ script:
                 id: 
                   - display_weather
                   
-                text_font: icon_font_80
+                text_font: icon_font_60
                 text: "\U000F0597"
           else:
             - if:
@@ -754,7 +754,7 @@ script:
                       id: 
                         - display_weather
                         
-                      text_font: icon_font_80
+                      text_font: icon_font_60
                       text: "\U000F0594"               
                 else:
                   - if:
@@ -765,7 +765,7 @@ script:
                             id: 
                               - display_weather
                               
-                            text_font: icon_font_80
+                            text_font: icon_font_60
                             text: "\U000F0590"
                       else:
                         - if:
@@ -776,7 +776,7 @@ script:
                                   id: 
                                     - display_weather
                                     
-                                  text_font: icon_font_80
+                                  text_font: icon_font_60
                                   text: "\U000F0592"
                             else:
                               - if:
@@ -787,7 +787,7 @@ script:
                                         id: 
                                           - display_weather
                                           
-                                        text_font: icon_font_80
+                                        text_font: icon_font_60
                                         text: "\U000F0593"
                                   else:
                                     - if:
@@ -798,7 +798,7 @@ script:
                                               id: 
                                                 - display_weather
                                                 
-                                              text_font: icon_font_80
+                                              text_font: icon_font_60
                                               text: "\U000F067E"
                                         else:
                                           - if:
@@ -809,7 +809,7 @@ script:
                                                     id: 
                                                       - display_weather
                                                       
-                                                    text_font: icon_font_80
+                                                    text_font: icon_font_60
                                                     text: "\U000F0595"
                                               else:
                                                 - if:
@@ -820,7 +820,7 @@ script:
                                                           id: 
                                                             - display_weather
                                                             
-                                                          text_font: icon_font_80
+                                                          text_font: icon_font_60
                                                           text: "\U000F0596"           
                                                     else:
                                                       - if:
@@ -831,7 +831,7 @@ script:
                                                                 id: 
                                                                   - display_weather
                                                                   
-                                                                text_font: icon_font_80
+                                                                text_font: icon_font_60
                                                                 text: "\U000F0598"  
                                                           else:
                                                             - if:
@@ -842,7 +842,7 @@ script:
                                                                       id: 
                                                                         - display_weather
                                                                         
-                                                                      text_font: icon_font_80
+                                                                      text_font: icon_font_60
                                                                       text: "\U000F067F"  
                                                                 else:
                                                                   - if:
@@ -853,7 +853,7 @@ script:
                                                                             id: 
                                                                               - display_weather
                                                                               
-                                                                            text_font: icon_font_80
+                                                                            text_font: icon_font_60
                                                                             text: "\U000F0599"    
                                                                       else:
                                                                         - if:
@@ -864,7 +864,7 @@ script:
                                                                                   id: 
                                                                                     - display_weather
                                                                                     
-                                                                                  text_font: icon_font_80
+                                                                                  text_font: icon_font_60
                                                                                   text: "\U000F0596"  
                                                                             else:
                                                                               - if:
@@ -875,7 +875,7 @@ script:
                                                                                         id: 
                                                                                           - display_weather
                                                                                           
-                                                                                        text_font: icon_font_80
+                                                                                        text_font: icon_font_60
                                                                                         text: "\U000F059D"  
                                                                                   else:
                                                                                     - if:
@@ -886,7 +886,7 @@ script:
                                                                                               id: 
                                                                                                 - display_weather
                                                                                                 
-                                                                                              text_font: icon_font_80
+                                                                                              text_font: icon_font_60
                                                                                               text: "\U000F059E" 
                                                                                         else:
                                                                                           - if:
@@ -897,7 +897,7 @@ script:
                                                                                                     id: 
                                                                                                       - display_weather
                                                                                                       
-                                                                                                    text_font: icon_font_80
+                                                                                                    text_font: icon_font_60
                                                                                                     text: "\U000F14E4"  
                                                                                               else:
                                                                                                 - if:
@@ -908,7 +908,7 @@ script:
                                                                                                           id: 
                                                                                                             - display_weather
                                                                                                             
-                                                                                                          text_font: icon_font_80
+                                                                                                          text_font: icon_font_60
                                                                                                           text: "\U000F0590"
 
 sensor:  
@@ -1517,6 +1517,12 @@ font:
     size: 20
     bpp: 4
     glyphs: *icon_glyphs 
+
+  - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/materialdesignicons-webfont.ttf"
+    id: icon_font_10
+    size: 10
+    bpp: 4
+    glyphs: *icon_glyphs 
      
 color:
   - id: dk_gray
@@ -1593,7 +1599,7 @@ lvgl:
           id: boot_screen
           x: 0
           y: 0
-          width: 320         # Explicit pixel size (for landscape 320×240)
+          width: 320         
           height: 240
           bg_color: 0x191919
           bg_opa: COVER
@@ -1607,7 +1613,7 @@ lvgl:
                 #align: CENTER
                 x: 0
                 y: 0
-                width: 320     # Match the asset size
+                width: 320     
                 height: 240
                 #zoom: 10.0
                 radius: 0
@@ -2178,32 +2184,33 @@ lvgl:
                   text_color: grey
                   scrollbar_mode: "OFF"
                   widgets:            
-                    - label:
-                        id: out_temp_lvgl_icon
-                        align: BOTTOM_LEFT
-                        text_font: icon_font_40
-                        text_color: grey
-                        text: "\U000F050F"
+                    # - label:
+                    #     id: out_temp_lvgl_icon
+                    #     align: BOTTOM_LEFT
+                    #     text_font: icon_font_40
+                    #     text_color: yellow
+                    #     text: "\U000F050F"
 
                     - label:
                         id: out_temp_lvgl
                         align: BOTTOM_LEFT
-                        translate_x: 20
+                        # translate_x: 20
                         #translate_y: 5
-                        text_color: grey
+                        text_color: yellow
                         text_font: montserrat_18
                         text: " "
 
                     - label:
                         id: display_weather
-                        align: CENTER
-                        #translate_x: 0
-                        text_font: icon_font_80
+                        align: BOTTOM_LEFT
+                        translate_x: 50
+                        text_font: icon_font_10
                         text: "\U000F14E4" 
 
                     - label:
                         id: display_weather_text
                         align: BOTTOM_RIGHT
+                        text_color: yellow
                         #translate_x: 60
                         text_font: montserrat_20
                         text: " " 
