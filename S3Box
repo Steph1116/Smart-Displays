@@ -28,18 +28,20 @@ psram:
   speed: 80MHz
   
 api:
-  # on_client_connected:
-  #   - if:
-  #       condition:
-  #         lambda: 'return (0 == client_info.find("Home Assistant "));'
-  #       then:
-  #         - lvgl.widget.show: lbl_hastatus
-  # on_client_disconnected:
-  #   - if:
-  #       condition:
-  #         lambda: 'return (0 == client_info.find("Home Assistant "));'
-  #       then:
-  #         - lvgl.widget.hide: lbl_hastatus
+  on_client_connected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.show: 
+              id: lbl_hastatus
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.hide: 
+              id: lbl_hastatus
 
 logger:
   hardware_uart: USB_SERIAL_JTAG
@@ -190,13 +192,13 @@ interval:
           if (id(back_light).current_values.is_on() && !id(display_override)) {
             id(idle_timer)++;
 
-            // Dim to 25% after 120 seconds of INACTIVITY
-            if (id(idle_timer) == 120) {
+            // Dim to 25% after 60 seconds of INACTIVITY
+            if (id(idle_timer) == 60) {
               id(back_light).turn_on().set_brightness(0.25).perform();
             }
 
-            // Turn off after 240 seconds of CONTINUOUS INACTIVITY
-            if (id(idle_timer) >= 240) {
+            // Turn off after 120 seconds of CONTINUOUS INACTIVITY
+            if (id(idle_timer) >= 120) {
               id(back_light).turn_off();
             }
           }
@@ -1458,7 +1460,7 @@ font:
   - file: "gfonts://Montserrat"
     id: montserrat_48
     size: 48
-
+  
   - file: "https://github.com/BigBobbas/ESP32-S3-Box3-Custom-ESPHome/raw/main/fonts/consola.ttf"
     id: my_font80
     size: 80
@@ -2195,6 +2197,15 @@ lvgl:
                           lvgl.page.show: status_page
 
                     - label:
+                        id: lbl_hastatus
+                        align: TOP_RIGHT
+                        translate_x: -60
+                        text_font: icon_font_60
+                        text: "\U000F07D0"
+                        text_color: lt_blue
+                        hidden: true
+
+                    - label:
                         id: automation_status_lvgl
                         align: TOP_RIGHT
                         text_font: icon_font_60
@@ -2266,7 +2277,7 @@ lvgl:
                         align: BOTTOM_LEFT
                         translate_x: 50
                         text_font: icon_font_10
-                        text: "\U000F14E4" 
+                        text: "\U000F14E4"
 
                     - label:
                         id: display_weather_text
@@ -2274,7 +2285,7 @@ lvgl:
                         text_color: yellow
                         #translate_x: 60
                         text_font: montserrat_20
-                        text: " " 
+                        text: " "
 
       on_load:
         - lambda: id(current_page) = "clock_page";
